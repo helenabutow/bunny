@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bunny
+  labels:
+    app.kubernetes.io/name: bunny
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bunny
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bunny
+    spec:
+      containers:
+      - name: bunny
+        image: bunny:latest
+        # we use this imagePullPolicy so that we can use images built on Docker Desktop
+        imagePullPolicy: IfNotPresent 
+        ports:
+        - containerPort: 1312
+        - containerPort: 50666
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 1312
+          initialDelaySeconds: 2
+          periodSeconds: 1
+        volumeMounts:
+        - name: bunny-secret
+          mountPath: /config
+          readOnly: true
+        # we only have these to make the linter be quiet
+        resources:
+          limits:
+            cpu: "4"
+            memory: "1Gi"
+      volumes:
+      - name: bunny-secret
+        secret:
+          secretName: bunny

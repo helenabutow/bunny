@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bunny
+spec:
+  type: ClusterIP
+  ports:
+  - name: proxy
+    port: 1312
+    protocol: TCP
+    targetPort: 1312
+  selector:
+    app.kubernetes.io/name: bunny
+  sessionAffinity: None

@@ -1,0 +1,6 @@
+# binaries that we build
+bunny
+
+# things that tooling creates
+.task
+deploy/kubernetes/bunny.telepresence-env

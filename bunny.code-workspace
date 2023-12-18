@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"todo-tree.general.tags": [
+			"TODO-HIGH",
+			"TODO-MEDIUM",
+			"TODO-LOW",
+			"BUG",
+			"HACK",
+			"FIXME"
+		  ]
+	}
+}

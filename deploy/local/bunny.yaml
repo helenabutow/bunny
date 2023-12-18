@@ -1,0 +1,3 @@
+ingress:
+  port: 1312
+  path: "healthz"
