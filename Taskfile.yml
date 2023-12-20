@@ -6,26 +6,20 @@ interval: '200ms'
 tasks:
 # top level task targets
 
-  build-macos-bin:
+  build-bin:
     sources:
       - ./**/*.go
     generates:
-      - bunny
+      - bunny-macos
+      - bunny-linux
     cmds:
-      # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny ./
-      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny ./
-
-  build-linux-bin:
-    sources:
-      - ./**/*.go
-    generates:
-      - bunny
-    cmds:
-      # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny ./
-      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny ./
+      # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-macos ./
+      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny-macos ./
+      # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-linux ./
+      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny-linux ./
 
   build-docker-image:
-    deps: [build-linux-bin, configure-docker]
+    deps: [build-bin, configure-docker]
     sources:
       - "{{.ROOT_DIR}}/bunny"
       - "{{.ROOT_DIR}}/deploy/containers/bunny/Dockerfile"
@@ -33,17 +27,19 @@ tasks:
       - docker image inspect bunny:latest
     dir: ./deploy/containers/bunny/
     cmds:
-      - cp "{{.ROOT_DIR}}/bunny" "{{.ROOT_DIR}}/deploy/containers/bunny/"
+      - cp "{{.ROOT_DIR}}/bunny-linux" "{{.ROOT_DIR}}/deploy/containers/bunny/bunny"
       - defer: rm "{{.ROOT_DIR}}/deploy/containers/bunny/bunny"
       - docker build -t bunny .
 
+  # this is a little hack-ish as there's no way to set memory in docker-desktop.yaml
+  # and it isn't returned when getting the cluster JSON
   configure-docker:
     cmds:
-      # - ctlptl docker-desktop open
-      # - ctlptl docker-desktop set vm.resources.cpus 4
-      # - ctlptl docker-desktop set vm.resources.memoryMiB 8192
-      # - ctlptl docker-desktop set vm.kubernetes.enabled false
       - ctlptl apply -f deploy/ctlptl/docker-desktop.yaml
+      - ctlptl docker-desktop set vm.resources.memoryMiB 8192
+      # - ctlptl docker-desktop set vm.kubernetes.enabled true
+    status:
+      - ctlptl get cluster docker-desktop -o json | jq --exit-status '.status.cpus == 4'
 
   add-telepresence-helm-repo:
     cmds:
@@ -55,26 +51,57 @@ tasks:
     deps: [configure-docker, add-telepresence-helm-repo]
     cmds:
       - helm repo update
-      - kubectl create namespace ambassador
-      - helm install traffic-manager --wait --namespace ambassador datawire/telepresence
+      - helm install traffic-manager --wait --create-namespace --namespace ambassador datawire/telepresence
+      - kubectl wait --for=jsonpath='{.status.loadBalancer}' --namespace ambassador service/traffic-manager
     status:
-      - helm list -A | grep '^traffic-manager[[:space:]]*ambassador'
+      - helm list --namespace ambassador | grep '^traffic-manager[[:space:]]*ambassador'
 
-  # create-bunny-deployment:
-
-  # create-bunny-secret:
-
-  # create-bunny-service:
-  #   status:
-  #     - kubectl get service bunny
-
-  start-telepresence:
-    deps: [install-telepresence, create-bunny-deployment, create-bunny-secret, create-bunny-service]
+  connect-telepresence:
+    deps: [install-telepresence]
     cmds:
       - telepresence connect
-      # - curl -ik https://kubernetes.default
-      - telepresence intercept bunny --port 1312:1312 --env-file "{{.ROOT_DIR}}/deploy/kubernetes/bunny.telepresence-env"
+    status:
+      - telepresence status --output json | jq --exit-status '.root_daemon.running'
+      - telepresence status --output json | jq --exit-status '.user_daemon.running'
+      - telepresence status --output json | jq --exit-status '.user_daemon.status == "Connected"'
 
+  disconnect-telepresence:
+    cmds:
+      - telepresence quit
+
+  start-telepresence-intercept:
+    deps: [connect-telepresence, create-bunny-deployment, create-bunny-secret, create-bunny-service]
+    cmds:
+      - telepresence intercept bunny --port 1312:1312 --env-file "{{.ROOT_DIR}}/deploy/kubernetes/bunny.telepresence-env"
+    status:
+      - telepresence status --output json | jq --exit-status '.root_daemon.running'
+      - telepresence status --output json | jq --exit-status '.user_daemon.running'
+      - telepresence status --output json | jq --exit-status '.user_daemon.status == "Connected"'
+
+  stop-telepresence-intercept:
+    cmds:
+      - telepresence leave bunny
+
+  create-bunny-deployment:
+    deps: [configure-docker, build-docker-image]
+    cmds:
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-deployment.yaml"
+    status:
+      - kubectl get deployment bunny
+
+  create-bunny-secret:
+    deps: [configure-docker]
+    cmds:
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-secret.yaml"
+    status:
+      - kubectl get secret bunny
+
+  create-bunny-service:
+    deps: [configure-docker]
+    cmds:
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-service.yaml"
+    status:
+      - kubectl get service bunny
 
   # create-registry:
   #   deps: [configure-docker]

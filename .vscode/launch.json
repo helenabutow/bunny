@@ -11,7 +11,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}",
             // "stopOnEntry": true,
-            "envFile": "${workspaceFolder}/deploy/kubernetes/bunny.telepresence-env",
+            // "envFile": "${workspaceFolder}/deploy/kubernetes/bunny.telepresence-env",
             "env": {
                 "BUNNY_CONFIG_FILE_PATH": "${workspaceFolder}/deploy/local/bunny.yaml"
             }

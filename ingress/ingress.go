@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"bunny/config"
+	"bunny/signals"
 	"context"
 	"fmt"
 	"log"
@@ -10,14 +11,22 @@ import (
 	"sync"
 )
 
-var logger *log.Logger = nil
+var logger *log.Logger = log.Default()
+var configUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
+var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
 var healthEndpointServer *http.Server = nil
 
-func GoIngress(wg *sync.WaitGroup, configUpdateChannel chan config.BunnyConfig, osSignalsChannel chan os.Signal) {
+func Init() {
+	logger.Println("Ingress initializing")
+	config.AddChannelListener(&configUpdateChannel)
+	signals.AddChannelListener(&osSignalsChannel)
+	logger.Println("Ingress is initialized")
+}
+
+func GoIngress(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logger = log.Default()
 	logger.Println("Ingress is go!")
 
 	for {
@@ -42,8 +51,6 @@ func GoIngress(wg *sync.WaitGroup, configUpdateChannel chan config.BunnyConfig, 
 			return
 		}
 	}
-
-	// logger.Println("Ingress is done!")
 }
 
 func shutdownHealthEndpoint() {

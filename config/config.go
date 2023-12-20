@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bunny/signals"
 	"crypto/sha256"
 	"errors"
 	"io/fs"
@@ -26,14 +27,20 @@ const defaultConfigFilePath string = "/config/bunny.yaml"
 
 var configDirPath string = path.Dir(defaultConfigFilePath)
 var configFilePath string = defaultConfigFilePath
-
-var logger *log.Logger = nil
+var logger *log.Logger = log.Default()
 var bunnyConfig *BunnyConfig = nil
+var configUpdateChannels []chan BunnyConfig = []chan BunnyConfig{}
+var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 
-func GoConfig(wg *sync.WaitGroup, configUpdateChannel chan BunnyConfig, osSignalsChannel chan os.Signal, configChannelListeners int) {
+func Init() {
+	logger.Println("Config initializing")
+	signals.AddChannelListener(&osSignalsChannel)
+	logger.Println("Config is initialized")
+}
+
+func GoConfig(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logger = log.Default()
 	logger.Println("Config is go!")
 
 	// figure out where to read the config file from
@@ -50,7 +57,7 @@ func GoConfig(wg *sync.WaitGroup, configUpdateChannel chan BunnyConfig, osSignal
 	logConfigBeingUsed()
 
 	// notify of first config via channel
-	for i := 0; i < configChannelListeners; i++ {
+	for _, configUpdateChannel := range configUpdateChannels {
 		configUpdateChannel <- *bunnyConfig
 	}
 
@@ -102,7 +109,7 @@ func GoConfig(wg *sync.WaitGroup, configUpdateChannel chan BunnyConfig, osSignal
 				// show the config being used
 				logConfigBeingUsed()
 				// notify of config change via channel
-				for i := 0; i < configChannelListeners; i++ {
+				for _, configUpdateChannel := range configUpdateChannels {
 					configUpdateChannel <- *bunnyConfig
 				}
 			}
@@ -122,8 +129,10 @@ func GoConfig(wg *sync.WaitGroup, configUpdateChannel chan BunnyConfig, osSignal
 			return
 		}
 	}
+}
 
-	logger.Println("Config is done!")
+func AddChannelListener(configUpdateChannel *(chan BunnyConfig)) {
+	configUpdateChannels = append(configUpdateChannels, *configUpdateChannel)
 }
 
 func generateDefaultConfig() *BunnyConfig {

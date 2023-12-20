@@ -2,4 +2,4 @@ apiVersion: ctlptl.dev/v1alpha1
 kind: Cluster
 product: docker-desktop
 minCPUs: 4
-# memoryMiB: 8192
+minMemory: 8192

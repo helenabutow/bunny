@@ -1,5 +1,6 @@
 # binaries that we build
-bunny
+bunny-linux
+bunny-macos
 
 # things that tooling creates
 .task
