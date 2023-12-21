@@ -2,7 +2,6 @@ package ingress
 
 import (
 	"bunny/config"
-	"bunny/signals"
 	"context"
 	"fmt"
 	"log"
@@ -12,15 +11,13 @@ import (
 )
 
 var logger *log.Logger = log.Default()
-var configUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
-var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
+var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
 var healthEndpointServer *http.Server = nil
 
 func Init() {
 	logger.Println("Ingress initializing")
-	config.AddChannelListener(&configUpdateChannel)
-	signals.AddChannelListener(&osSignalsChannel)
 	logger.Println("Ingress is initialized")
 }
 
@@ -32,7 +29,7 @@ func GoIngress(wg *sync.WaitGroup) {
 	for {
 		logger.Println("waiting for config or signal")
 		select {
-		case bunnyConfig, ok := <-configUpdateChannel:
+		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
 				continue
 			}
@@ -42,7 +39,7 @@ func GoIngress(wg *sync.WaitGroup) {
 			startHealthEndpoint()
 			logger.Println("config update processing complete")
 
-		case signal, ok := <-osSignalsChannel:
+		case signal, ok := <-OSSignalsChannel:
 			if !ok {
 				logger.Println("could not process signal from signal channel")
 			}

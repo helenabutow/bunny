@@ -18,6 +18,17 @@ tasks:
       # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-linux ./
       - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny-linux ./
 
+  run-bin:
+    deps: [build-bin]
+    env:
+      BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
+    cmds:
+      - cmd: ./bunny-macos
+        platforms: [darwin]
+      - cmd: ./bunny-linux
+        platforms: [linux]
+
+
   build-docker-image:
     deps: [build-bin, configure-docker]
     sources:

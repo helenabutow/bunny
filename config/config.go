@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bunny/signals"
 	"crypto/sha256"
 	"errors"
 	"io/fs"
@@ -16,11 +15,16 @@ import (
 
 type BunnyConfig struct {
 	IngressConfig IngressConfig `yaml:"ingress"`
+	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
 type IngressConfig struct {
 	Port int    `yaml:"port"`
 	Path string `yaml:"path"`
+}
+
+type SignalsConfig struct {
+	WatchedProcessName *string `yaml:"watchedProcessName"`
 }
 
 const defaultConfigFilePath string = "/config/bunny.yaml"
@@ -30,11 +34,10 @@ var configFilePath string = defaultConfigFilePath
 var logger *log.Logger = log.Default()
 var bunnyConfig *BunnyConfig = nil
 var configUpdateChannels []chan BunnyConfig = []chan BunnyConfig{}
-var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 
 func Init() {
 	logger.Println("Config initializing")
-	signals.AddChannelListener(&osSignalsChannel)
 	logger.Println("Config is initialized")
 }
 
@@ -121,7 +124,7 @@ func GoConfig(wg *sync.WaitGroup) {
 			}
 			logger.Println("error while watching config file: ", err)
 
-		case signal, ok := <-osSignalsChannel:
+		case signal, ok := <-OSSignalsChannel:
 			if !ok {
 				logger.Println("could not process signal from signal channel")
 			}
