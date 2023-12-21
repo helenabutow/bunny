@@ -86,6 +86,13 @@ func startHealthEndpoint() {
 	logger.Println("done starting health endpoint server")
 }
 
+// TODO-MEDIUM: consider allowing PromQL to be used to determine endpoint result
+// PromQL intro and reference: https://prometheus.io/docs/prometheus/latest/querying/basics/
+// We may be able to implement this against the Prometheus metrics endpoint that OpenTelemetry provides
+// If that doesn't work, we could also consider running a Prometheus server as a sidecar
+// (though tuning its storage and memory usage could be a pain: https://prometheus.io/docs/prometheus/1.8/storage/)
+// And if that doesn't work, we could also support using PromQL against an external server
+// (though the round trip time for getting the newest metrics might make that less useful)
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 	logger.Println("healthy")
 	fmt.Fprintln(w, "healthy")
