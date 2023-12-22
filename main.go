@@ -3,6 +3,7 @@ package main
 import (
 	"bunny/config"
 	"bunny/ingress"
+	"bunny/otel"
 	"bunny/signals"
 	"log"
 	"sync"
@@ -19,9 +20,11 @@ func main() {
 
 	// wiring up channels
 	config.AddChannelListener(&ingress.ConfigUpdateChannel)
+	config.AddChannelListener(&otel.ConfigUpdateChannel)
 	config.AddChannelListener(&signals.ConfigUpdateChannel)
 	signals.AddChannelListener(&config.OSSignalsChannel)
 	signals.AddChannelListener(&ingress.OSSignalsChannel)
+	signals.AddChannelListener(&otel.OSSignalsChannel)
 
 	// do the rest of each package's init
 	config.Init()
@@ -33,6 +36,8 @@ func main() {
 	go config.GoConfig(&wg)
 	wg.Add(1)
 	go ingress.GoIngress(&wg)
+	wg.Add(1)
+	go otel.GoOTel(&wg)
 	wg.Add(1)
 	go signals.GoSignals(&wg)
 	wg.Add(1)

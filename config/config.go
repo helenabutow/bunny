@@ -16,6 +16,7 @@ import (
 type BunnyConfig struct {
 	IngressConfig IngressConfig `yaml:"ingress"`
 	SignalsConfig SignalsConfig `yaml:"signals"`
+	OTelConfig    OTelConfig    `yaml:"otel"`
 }
 
 type IngressConfig struct {
@@ -25,6 +26,10 @@ type IngressConfig struct {
 
 type SignalsConfig struct {
 	WatchedProcessName *string `yaml:"watchedProcessName"`
+}
+
+type OTelConfig struct {
+	Blarg *string `yaml:"blarg"`
 }
 
 const defaultConfigFilePath string = "/config/bunny.yaml"
