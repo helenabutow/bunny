@@ -56,16 +56,16 @@ tasks:
     cmds:
       - helm repo add datawire https://app.getambassador.io
     status:
-      - helm repo list | grep '^datawire'
+      - helm repo list --output json | jq --exit-status '.[] | select(.name == "datawire")'
 
   install-telepresence:
     deps: [configure-docker, add-telepresence-helm-repo]
     cmds:
       - helm repo update
-      - helm install traffic-manager --wait --create-namespace --namespace ambassador datawire/telepresence
+      - helm install traffic-manager datawire/telepresence --wait --create-namespace --namespace ambassador 
       - kubectl wait --for=jsonpath='{.status.loadBalancer}' --namespace ambassador service/traffic-manager
     status:
-      - helm list --namespace ambassador | grep '^traffic-manager[[:space:]]*ambassador'
+      - helm list --namespace ambassador --output json | jq --exit-status '.[] | select(.name == "traffic-manager")'
 
   connect-telepresence:
     deps: [install-telepresence]
@@ -96,21 +96,48 @@ tasks:
   create-bunny-deployment:
     deps: [configure-docker, build-docker-image]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-deployment.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-deployment.yaml"
     status:
       - kubectl get deployment bunny
 
   create-bunny-secret:
     deps: [configure-docker]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-secret.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-secret.yaml"
     status:
       - kubectl get secret bunny
 
   create-bunny-service:
     deps: [configure-docker]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-service.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-service.yaml"
     status:
       - kubectl get service bunny
 
+  add-grafana-helm-repo:
+    cmds:
+      - helm repo add grafana https://grafana.github.io/helm-charts
+    status:
+      - helm repo list --output json | jq --exit-status '.[] | select(.name == "grafana")'
+
+  install-grafana:
+    deps: [configure-docker, add-grafana-helm-repo, install-mimir, install-tempo]
+    cmds:
+      - helm repo update
+      - helm install grafana grafana/grafana --wait --create-namespace --namespace grafana --version 7.0.19 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/grafana-values.yaml"
+    status:
+      - helm list --namespace grafana --output json | jq --exit-status '.[] | select(.name == "grafana")'
+
+  install-mimir:
+    deps: [configure-docker, add-grafana-helm-repo]
+    cmds:
+      - helm install mimir grafana/mimir-distributed --wait --create-namespace --namespace mimir --version 5.1.4 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/mimir-values.yaml"
+    status:
+      - helm list --namespace mimir --output json | jq --exit-status '.[] | select(.name == "mirir")'
+
+  install-tempo:
+    deps: [configure-docker, add-grafana-helm-repo]
+    cmds:
+      - helm install tempo grafana/tempo-distributed --wait --create-namespace --namespace tempo --version 1.7.3 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/tempo-values.yaml"
+    status:
+      - helm list --namespace tempo --output json | jq --exit-status '.[] | select(.name == "tempo")'
