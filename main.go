@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+
+	"github.com/golang-cz/devslog"
 )
 
 func main() {
@@ -77,7 +79,13 @@ func configureLogger() *slog.Logger {
 	logHandlerEnvVar := os.Getenv("LOG_HANDLER")
 	switch logHandlerEnvVar {
 	case "TEXT", "text", "CONSOLE", "console":
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &handlerOptions))
+		devSlogOpts := &devslog.Options{
+			HandlerOptions:    &handlerOptions,
+			MaxSlicePrintSize: 100,
+			SortKeys:          true,
+		}
+		logger = slog.New(devslog.NewHandler(os.Stdout, devSlogOpts))
+
 	default:
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &handlerOptions))
 	}
