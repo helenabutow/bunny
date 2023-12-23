@@ -4,46 +4,46 @@ import (
 	"bunny/config"
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
 )
 
-var logger *log.Logger = log.Default()
+var logger *slog.Logger = slog.Default()
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
 var healthEndpointServer *http.Server = nil
 
 func Init() {
-	logger.Println("Ingress initializing")
-	logger.Println("Ingress is initialized")
+	logger.Info("Ingress initializing")
+	logger.Info("Ingress is initialized")
 }
 
 func GoIngress(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logger.Println("Ingress is go!")
+	logger.Info("Ingress is go!")
 
 	for {
-		logger.Println("waiting for config or signal")
+		logger.Info("waiting for config or signal")
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
 				continue
 			}
-			logger.Println("received config update")
+			logger.Info("received config update")
 			ingressConfig = &bunnyConfig.IngressConfig
 			shutdownHealthEndpoint()
 			startHealthEndpoint()
-			logger.Println("config update processing complete")
+			logger.Info("config update processing complete")
 
 		case signal, ok := <-OSSignalsChannel:
 			if !ok {
-				logger.Println("could not process signal from signal channel")
+				logger.Error("could not process signal from signal channel")
 			}
-			logger.Printf("received signal %v. Ending go routine.", signal)
+			logger.Info("received signal. Ending go routine.", "signal", signal)
 			shutdownHealthEndpoint()
 			return
 		}
@@ -52,17 +52,17 @@ func GoIngress(wg *sync.WaitGroup) {
 
 func shutdownHealthEndpoint() {
 	if healthEndpointServer != nil {
-		logger.Println("shutting down health endpoint server")
+		logger.Info("shutting down health endpoint server")
 		err := healthEndpointServer.Shutdown(context.Background())
 		if err != nil {
-			logger.Printf("errors while shutting down the health endpoint server: %v", err)
+			logger.Error("errors while shutting down the health endpoint server", "err", err)
 		}
-		logger.Println("done shutting down health endpoint server")
+		logger.Info("done shutting down health endpoint server")
 	}
 }
 
 func startHealthEndpoint() {
-	logger.Println("starting health endpoint server")
+	logger.Info("starting health endpoint server")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/"+ingressConfig.Path, healthEndpoint)
 	// TODO-LOW: tweak http timeouts to something helpful?
@@ -80,10 +80,10 @@ func startHealthEndpoint() {
 		err := healthEndpointServer.ListenAndServe()
 		if err != http.ErrServerClosed {
 			// Error starting or closing listener:
-			logger.Fatalf("HTTP server ListenAndServe: %v", err)
+			logger.Error("Error starting or closing listener", "err", err)
 		}
 	}()
-	logger.Println("done starting health endpoint server")
+	logger.Info("done starting health endpoint server")
 }
 
 // TODO-MEDIUM: consider allowing PromQL to be used to determine endpoint result
@@ -94,7 +94,7 @@ func startHealthEndpoint() {
 // And if that doesn't work, we could also support using PromQL against an external server
 // (though the round trip time for getting the newest metrics might make that less useful)
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
-	logger.Println("healthy")
+	logger.Info("healthy")
 	fmt.Fprintln(w, "healthy")
 }
 

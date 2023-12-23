@@ -2,7 +2,7 @@ package signals
 
 import (
 	"bunny/config"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -14,21 +14,20 @@ import (
 	"github.com/mitchellh/go-ps"
 )
 
-var logger *log.Logger = log.Default()
-
+var logger *slog.Logger = slog.Default()
 var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var osSignalListenerChannels []chan os.Signal = []chan os.Signal{}
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var signalsConfig *config.SignalsConfig = nil
 
 func Init() {
-	logger.Println("Signals initializing")
+	logger.Info("Signals initializing")
 	// since we may need to wait for a process to die before exiting,
 	// we register a single channel here with os/signal, then in
 	// GoSignal, we wait for it and for the process to die before
 	// forwarding it further to the other channels
 	signal.Notify(osSignalsChannel, syscall.SIGINT, syscall.SIGTERM)
-	logger.Println("Signals is initialized")
+	logger.Info("Signals is initialized")
 }
 
 func AddChannelListener(listenersChannel *(chan os.Signal)) {
@@ -38,44 +37,44 @@ func AddChannelListener(listenersChannel *(chan os.Signal)) {
 func GoSignals(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logger.Println("Signals is go!")
+	logger.Info("Signals is go!")
 
 	for {
-		logger.Println("waiting for config or signal")
+		logger.Info("waiting for config or signal")
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
 				continue
 			}
-			logger.Println("received config update")
+			logger.Info("received config update")
 			signalsConfig = &bunnyConfig.SignalsConfig
-			logger.Println("config update processing complete")
+			logger.Info("config update processing complete")
 
 		case signal, ok := <-osSignalsChannel:
 			if !ok {
-				logger.Println("could not process signal from signal channel")
+				logger.Error("could not process signal from signal channel")
 			}
-			logger.Printf("received signal %v", signal)
+			logger.Info("received signal", "signal", signal)
 			if signalsConfig != nil &&
 				signalsConfig.WatchedProcessName != nil &&
 				*signalsConfig.WatchedProcessName != "" {
-				logger.Printf("checking for process to watch")
+				logger.Info("checking for process to watch")
 				for processExists := true; processExists; {
 					processExists = false
 
 					// get the list of processes
-					logger.Print("getting the list of processes")
+					logger.Info("getting the list of processes")
 					processes, err := ps.Processes()
 					if err != nil {
-						logger.Printf("could not get list of processes: %v", err)
+						logger.Error("could not get list of processes", "err", err)
 					}
 
 					// check if any of the processes match the regex
 					for _, process := range processes {
 						if *signalsConfig.WatchedProcessName == process.Executable() {
-							logger.Printf("found process to wait on")
-							logger.Printf("process.Executable() = \"%v\"", process.Executable())
-							logger.Printf("process.Pid() = \"%v\"", process.Pid())
+							logger.Info("found process to wait on")
+							logger.Debug("found process to wait on", "process.Executable()", process.Executable())
+							logger.Debug("found process to wait on", "process.Pid()", process.Pid())
 							processExists = true
 							break
 						}
@@ -83,18 +82,18 @@ func GoSignals(wg *sync.WaitGroup) {
 
 					// sleep so that we don't hammer /proc
 					if processExists {
-						logger.Printf("sleeping for a second before checking again")
+						logger.Info("sleeping for a second before checking again")
 						time.Sleep(1 * time.Second)
 					} else {
-						logger.Printf("process not found")
+						logger.Info("process not found")
 					}
 				}
 			}
-			logger.Printf("notifying packages of signal %v", signal)
+			logger.Info("notifying packages of signal", "signal", signal)
 			for _, listenerChannel := range osSignalListenerChannels {
 				listenerChannel <- signal
 			}
-			logger.Printf("ending go routine")
+			logger.Info("ending go routine")
 			return
 		}
 	}

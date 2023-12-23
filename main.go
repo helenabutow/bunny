@@ -5,15 +5,47 @@ import (
 	"bunny/ingress"
 	"bunny/otel"
 	"bunny/signals"
-	"log"
+	"log/slog"
+	"os"
 	"sync"
 )
 
-var logger = log.Default()
-
 func main() {
-	logger.SetFlags(log.Ldate | log.Ltime | log.Llongfile | log.LUTC)
-	logger.Println("begin")
+	// TODO-LOW: support setting the log level via the config file as well
+	// (so that the initial log level is set via an env var and then is changeable via the config file)
+	// TODO-LOW: support changing the timezone to UTC
+	// this may be possible by just setting the TZ env var to "UTC"
+	// or with https://github.com/samber/slog-formatter#TimeFormatter
+	var logLevel = new(slog.LevelVar)
+	logLevelEnvVar := os.Getenv("LOG_LEVEL")
+	if logLevelEnvVar != "" {
+		switch logLevelEnvVar {
+		case "INFO", "info":
+			logLevel.Set(slog.LevelInfo)
+		case "DEBUG", "debug":
+			logLevel.Set(slog.LevelDebug)
+		case "WARN", "warn":
+			logLevel.Set(slog.LevelWarn)
+		case "ERROR", "error":
+			logLevel.Set(slog.LevelError)
+		default:
+			logLevel.Set(slog.LevelInfo)
+		}
+	}
+	var handlerOptions = slog.HandlerOptions{
+		AddSource: true,
+		Level:     logLevel,
+	}
+	var logger *slog.Logger = nil
+	logHandlerEnvVar := os.Getenv("LOG_HANDLER")
+	switch logHandlerEnvVar {
+	case "TEXT", "text", "CONSOLE", "console":
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &handlerOptions))
+	default:
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, &handlerOptions))
+	}
+	slog.SetDefault(logger)
+	logger.Info("begin")
 
 	// TODO-LOW: set a memory limit (using runtime/debug.SetMemoryLimit, if not already set via the GOMEMLIMIT env var)
 	// TODO-LOW: set garbage collection (using runtime/debug.SetGCPercent, if not already set via the GOGC env var)
@@ -43,5 +75,5 @@ func main() {
 	wg.Add(1)
 	wg.Wait()
 
-	logger.Println("end")
+	logger.Info("end")
 }
