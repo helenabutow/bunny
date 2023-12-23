@@ -34,14 +34,15 @@ type OTelConfig struct {
 
 const defaultConfigFilePath string = "/config/bunny.yaml"
 
-var logger *slog.Logger = slog.Default()
+var logger *slog.Logger = nil
 var configDirPath string = path.Dir(defaultConfigFilePath)
 var configFilePath string = defaultConfigFilePath
 var bunnyConfig *BunnyConfig = nil
 var configUpdateChannels []chan BunnyConfig = []chan BunnyConfig{}
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 
-func Init() {
+func Init(sharedLogger *slog.Logger) {
+	logger = sharedLogger
 	logger.Info("Config initializing")
 	logger.Info("Config is initialized")
 }

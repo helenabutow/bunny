@@ -7,12 +7,13 @@ import (
 	"sync"
 )
 
-var logger *slog.Logger = slog.Default()
+var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var oTelConfig *config.OTelConfig = nil
 
-func Init() {
+func Init(sharedLogger *slog.Logger) {
+	logger = sharedLogger
 	logger.Info("OTel initializing")
 	logger.Info("OTel is initialized")
 }

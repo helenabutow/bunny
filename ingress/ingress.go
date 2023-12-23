@@ -10,13 +10,14 @@ import (
 	"sync"
 )
 
-var logger *slog.Logger = slog.Default()
+var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
 var healthEndpointServer *http.Server = nil
 
-func Init() {
+func Init(sharedLogger *slog.Logger) {
+	logger = sharedLogger
 	logger.Info("Ingress initializing")
 	logger.Info("Ingress is initialized")
 }

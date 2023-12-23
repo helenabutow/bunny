@@ -23,6 +23,7 @@ tasks:
     env:
       BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
       LOG_HANDLER: text
+      LOG_LEVEL: info
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]

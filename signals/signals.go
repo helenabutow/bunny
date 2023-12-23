@@ -14,13 +14,14 @@ import (
 	"github.com/mitchellh/go-ps"
 )
 
-var logger *slog.Logger = slog.Default()
+var logger *slog.Logger = nil
 var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var osSignalListenerChannels []chan os.Signal = []chan os.Signal{}
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var signalsConfig *config.SignalsConfig = nil
 
-func Init() {
+func Init(sharedLogger *slog.Logger) {
+	logger = sharedLogger
 	logger.Info("Signals initializing")
 	// since we may need to wait for a process to die before exiting,
 	// we register a single channel here with os/signal, then in
