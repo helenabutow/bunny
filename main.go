@@ -49,8 +49,9 @@ func main() {
 func configureLogger() *slog.Logger {
 	// TODO-LOW: support setting the log level via the config file as well
 	// (so that the initial log level is set via an env var and then is changeable via the config file)
+	// we may want to support having different log levels for different packages
 	// TODO-LOW: support changing the timezone to UTC
-	// this may be possible by just setting the TZ env var to "UTC"
+	// a workaround in the meantime is just setting the TZ env var to "UTC"
 	// or with https://github.com/samber/slog-formatter#TimeFormatter
 	var logLevel = new(slog.LevelVar)
 	logLevelEnvVar := os.Getenv("LOG_LEVEL")
