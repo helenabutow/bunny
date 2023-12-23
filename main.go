@@ -45,8 +45,3 @@ func main() {
 
 	logger.Println("end")
 }
-
-// TODO-MEDIUM: add support for Prometheus metrics (using OpenTelemetry)
-// we might want to use this for deploying a Prometheus scraper into the cluster: https://github.com/tilt-dev/tilt-extensions/tree/master/helm_resource
-// we definitely want the memory usage and garbage collection metrics (see the Go Collector from https://github.com/prometheus/client_golang/blob/main/examples/gocollector/main.go)
-// also https://povilasv.me/prometheus-go-metrics/
