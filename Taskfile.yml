@@ -83,7 +83,7 @@ tasks:
   start-telepresence-intercept:
     deps: [connect-telepresence, create-bunny-deployment, create-bunny-secret, create-bunny-service]
     cmds:
-      - telepresence intercept bunny --port 1312:1312 --env-file "{{.ROOT_DIR}}/deploy/kubernetes/bunny.telepresence-env"
+      - telepresence intercept bunny --port 1312:1312 --env-file "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny.telepresence-env"
     status:
       - telepresence status --output json | jq --exit-status '.root_daemon.running'
       - telepresence status --output json | jq --exit-status '.user_daemon.running'
@@ -96,52 +96,21 @@ tasks:
   create-bunny-deployment:
     deps: [configure-docker, build-docker-image]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-deployment.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-deployment.yaml"
     status:
       - kubectl get deployment bunny
 
   create-bunny-secret:
     deps: [configure-docker]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-secret.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-secret.yaml"
     status:
       - kubectl get secret bunny
 
   create-bunny-service:
     deps: [configure-docker]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny-service.yaml"
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/bunny/kubernetes/bunny-service.yaml"
     status:
       - kubectl get service bunny
 
-  # create-registry:
-  #   deps: [configure-docker]
-  #   cmds:
-  #     - ctlptl apply -f deploy/ctlptl/registry.yaml
-
-  # destroy-registry:
-  #   deps: [configure-docker]
-  #   cmds:
-  #     - ctlptl delete -f deploy/ctlptl/registry.yaml
-
-  # list-images:
-  #   cmds:
-  #     - reg ls --force-non-ssl localhost:5000
-
-  # create-kind-cluster:
-  #   deps: [configure-docker, create-registry]
-  #   cmds:
-  #     - ctlptl apply -f deploy/ctlptl/kind.yaml
-
-  # destroy-kind-cluster:
-  #   deps: [configure-docker]
-  #   cmds:
-  #     - ctlptl delete -f deploy/ctlptl/kind.yaml
-
-  # start-tilt:
-  #   deps: [create-kind-cluster]
-  #   vars:
-  #     REGISTRY_ADDRESS:
-  #       sh: ctlptl get cluster kind-scruffy -o json | jq -r '.status.localRegistryHosting.host'
-  #   cmds:
-  #     - tilt up
