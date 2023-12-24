@@ -2,9 +2,16 @@ package otel
 
 import (
 	"bunny/config"
+	"context"
+	"log"
 	"log/slog"
 	"os"
 	"sync"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	api "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/sdk/metric"
 )
 
 var logger *slog.Logger = nil
@@ -15,6 +22,25 @@ var oTelConfig *config.OTelConfig = nil
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
 	logger.Info("OTel initializing")
+
+	exporter, err := prometheus.New()
+	if err != nil {
+		logger.Error("error while creating Prometheus exporter", "err", err)
+	}
+	provider := metric.NewMeterProvider(metric.WithReader(exporter))
+	meter := provider.Meter(oTelConfig.MeterName)
+	// TODO-HIGH: move this test data creation into a separate metrics package?
+	opt := api.WithAttributes(
+		attribute.Key("A").String("B"),
+		attribute.Key("C").String("D"),
+	)
+	ctx := context.Background()
+	counter, err := meter.Float64Counter("foo", api.WithDescription("a simple counter"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	counter.Add(ctx, 5, opt)
+
 	logger.Info("OTel is initialized")
 }
 

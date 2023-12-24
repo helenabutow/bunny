@@ -1,0 +1,77 @@
+receivers:
+  # Data sources: metrics
+  hostmetrics:
+    scrapers:
+      # these aren't supported by otelcol right now
+      # cpu:
+      # disk:
+      filesystem:
+      load:
+      memory:
+      network:
+      process:
+      processes:
+      paging:
+
+  # Data sources: traces, metrics, logs
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+  # Data sources: metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: otel-collector
+          scrape_interval: 1s
+          static_configs:
+            - targets: [localhost:1312]
+
+# processors:
+#   batch:
+
+exporters:
+  # Data sources: traces, metrics, logs
+  # NOTE: Prior to v0.86.0 use `logging` instead of `debug`
+  debug:
+    verbosity: detailed
+
+  # Data sources: traces, metrics, logs
+  otlp:
+    endpoint: localhost:30002
+
+  # Data sources: traces, metrics
+  # for Mimir, it looks like we would do something like this:
+  # otlphttp:
+  #   endpoint: http://localhost:30002
+
+  # Data sources: metrics
+  # see: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/#remote-write
+  prometheusremotewrite:
+    endpoint: http://localhost:30001/api/v1/push
+    # When using the official Prometheus (running via Docker)
+    # endpoint: 'http://prometheus:9090/api/v1/write', add:
+    # tls:
+    #   insecure: true
+
+extensions:
+  health_check:
+  pprof:
+  zpages:
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    # traces:
+    #   receivers: [otlp]
+    #   processors: []
+    #   exporters: [otlp]
+    metrics:
+      receivers: [hostmetrics, prometheus]
+      processors: []
+      exporters: [prometheusremotewrite]
+    # logs:
+    #   receivers: [otlp]
+    #   processors: []
+    #   exporters: [otlp]

@@ -8,13 +8,15 @@ import (
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
-var healthEndpointServer *http.Server = nil
+var httpServer *http.Server = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -37,7 +39,7 @@ func GoIngress(wg *sync.WaitGroup) {
 			logger.Info("received config update")
 			ingressConfig = &bunnyConfig.IngressConfig
 			shutdownHealthEndpoint()
-			startHealthEndpoint()
+			startHTTPServer()
 			logger.Info("config update processing complete")
 
 		case signal, ok := <-OSSignalsChannel:
@@ -52,9 +54,9 @@ func GoIngress(wg *sync.WaitGroup) {
 }
 
 func shutdownHealthEndpoint() {
-	if healthEndpointServer != nil {
+	if httpServer != nil {
 		logger.Info("shutting down health endpoint server")
-		err := healthEndpointServer.Shutdown(context.Background())
+		err := httpServer.Shutdown(context.Background())
 		if err != nil {
 			logger.Error("errors while shutting down the health endpoint server", "err", err)
 		}
@@ -62,12 +64,15 @@ func shutdownHealthEndpoint() {
 	}
 }
 
-func startHealthEndpoint() {
-	logger.Info("starting health endpoint server")
+func startHTTPServer() {
+	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
+	// TODO-MEDIUM: make *all* the endpoint paths configurable
+	// we have to do this because if we're running bunny as a sidecar, there will be conflicts with the "/metrics" endpoint for the app
 	mux.HandleFunc("/"+ingressConfig.Path, healthEndpoint)
+	mux.Handle("/metrics", promhttp.Handler())
 	// TODO-LOW: tweak http timeouts to something helpful?
-	healthEndpointServer = &http.Server{
+	httpServer = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.Port),
 		ReadTimeout:       0,
 		ReadHeaderTimeout: 0,
@@ -78,13 +83,13 @@ func startHealthEndpoint() {
 	}
 
 	go func() {
-		err := healthEndpointServer.ListenAndServe()
+		err := httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
 			// Error starting or closing listener:
 			logger.Error("Error starting or closing listener", "err", err)
 		}
 	}()
-	logger.Info("done starting health endpoint server")
+	logger.Info("done starting HTTP server")
 }
 
 // TODO-MEDIUM: consider allowing PromQL to be used to determine endpoint result
@@ -94,6 +99,8 @@ func startHealthEndpoint() {
 // (though tuning its storage and memory usage could be a pain: https://prometheus.io/docs/prometheus/1.8/storage/)
 // And if that doesn't work, we could also support using PromQL against an external server
 // (though the round trip time for getting the newest metrics might make that less useful)
+// this might be a starting point: https://github.com/prometheus/client_golang/blob/main/api/prometheus/v1/example_test.go#L54
+// (we should check if OpenTelemetry has a way to do this)
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 	logger.Info("healthy")
 	fmt.Fprintln(w, "healthy")

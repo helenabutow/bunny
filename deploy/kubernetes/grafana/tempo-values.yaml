@@ -1570,7 +1570,7 @@ minio:
 # Configuration for the gateway
 gateway:
   # -- Specifies whether the gateway should be enabled
-  enabled: false
+  enabled: true
   # -- Number of replicas for the gateway
   replicas: 1
   # -- hostAliases to add
@@ -1658,11 +1658,11 @@ gateway:
     # -- Port of the gateway service
     port: 80
     # -- Type of the gateway service
-    type: ClusterIP
+    type: NodePort
     # -- ClusterIP of the gateway service
     clusterIP: null
     # -- Node port if service type is NodePort
-    nodePort: null
+    nodePort: 30002
     # -- Load balancer IPO address if service type is LoadBalancer
     loadBalancerIP: null
     # -- Annotations for the gateway service

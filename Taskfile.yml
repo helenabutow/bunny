@@ -144,3 +144,7 @@ tasks:
       - helm install tempo grafana/tempo-distributed --wait --create-namespace --namespace tempo --version 1.7.3 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/tempo-values.yaml"
     status:
       - helm list --namespace tempo --output json | jq --exit-status '.[] | select(.name == "tempo")'
+
+  run-otelcol:
+    cmds:
+      - otelcol --config="{{.ROOT_DIR}}/deploy/local/otelcol.yaml"

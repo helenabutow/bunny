@@ -2214,11 +2214,11 @@ nginx:
     # -- Port of the nginx service
     port: 80
     # -- Type of the nginx service
-    type: ClusterIP
+    type: NodePort
     # -- ClusterIP of the nginx service
     clusterIP: null
     # -- Node port if service type is NodePort
-    nodePort: null
+    nodePort: 30001
     # -- Load balancer IP address if service type is LoadBalancer
     loadBalancerIP: null
     # -- Annotations for the nginx service

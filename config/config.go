@@ -29,7 +29,7 @@ type SignalsConfig struct {
 }
 
 type OTelConfig struct {
-	Blarg *string `yaml:"blarg"`
+	MeterName string `yaml:"meterName"`
 }
 
 const defaultConfigFilePath string = "/config/bunny.yaml"
@@ -149,6 +149,9 @@ func generateDefaultConfig() *BunnyConfig {
 		IngressConfig: IngressConfig{
 			Port: 1312,
 			Path: "healthz",
+		},
+		OTelConfig: OTelConfig{
+			MeterName: "bunny",
 		},
 	}
 }
