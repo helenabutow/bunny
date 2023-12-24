@@ -18,29 +18,20 @@ var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var oTelConfig *config.OTelConfig = nil
+var provider *metric.MeterProvider = nil
+var meter *api.Meter = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
 	logger.Info("OTel initializing")
 
+	// setup Prometheus
+	// the HTTP endpoint is in the ingress package
 	exporter, err := prometheus.New()
 	if err != nil {
 		logger.Error("error while creating Prometheus exporter", "err", err)
 	}
-	provider := metric.NewMeterProvider(metric.WithReader(exporter))
-	meter := provider.Meter(oTelConfig.MeterName)
-	// TODO-HIGH: move this test data creation into a separate metrics package?
-	opt := api.WithAttributes(
-		attribute.Key("A").String("B"),
-		attribute.Key("C").String("D"),
-	)
-	ctx := context.Background()
-	counter, err := meter.Float64Counter("foo", api.WithDescription("a simple counter"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	counter.Add(ctx, 5, opt)
-
+	provider = metric.NewMeterProvider(metric.WithReader(exporter))
 	logger.Info("OTel is initialized")
 }
 
@@ -58,6 +49,25 @@ func GoOTel(wg *sync.WaitGroup) {
 			}
 			logger.Info("received config update")
 			oTelConfig = &bunnyConfig.OTelConfig
+			// TODO-HIGH: it looks like we can't just create a new Meter if we want to rename the meter
+			// to repro, rename `otel.meterName` in `deploy/local/bunny.yaml`, wait a minute and then rename it back
+			// you should see the the `foo_total` metric in Mimir double with 2 `otel_scope_name` label values
+			// ick
+			newMeter := provider.Meter(oTelConfig.MeterName)
+			meter = &(newMeter)
+
+			// TODO-HIGH: move this test data creation into a separate metrics package?
+			opt := api.WithAttributes(
+				attribute.Key("A").String("B"),
+				attribute.Key("C").String("D"),
+			)
+			ctx := context.Background()
+			counter, err := (*meter).Float64Counter("foo", api.WithDescription("a simple counter"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			counter.Add(ctx, 5, opt)
+
 			logger.Info("config update processing complete")
 
 		case signal, ok := <-OSSignalsChannel:
@@ -77,3 +87,8 @@ func GoOTel(wg *sync.WaitGroup) {
 // also https://povilasv.me/prometheus-go-metrics/
 
 // TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog
+
+// TODO-LOW: each metric that ingress generates should toggle-able
+// if someone doesn't need a metric, we should waste cpu generating values for it
+// and if they're opt-in, scrape configs get simpler and don't have to change as metrics are added/removed
+// (which would be a pain if someone was using annotation based scrape configs on their Pods)
