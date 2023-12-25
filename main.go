@@ -23,7 +23,6 @@ func main() {
 	// wiring up channels
 	config.AddChannelListener(&egress.ConfigUpdateChannel)
 	config.AddChannelListener(&ingress.ConfigUpdateChannel)
-	config.AddChannelListener(&otel.ConfigUpdateChannel)
 	config.AddChannelListener(&signals.ConfigUpdateChannel)
 	signals.AddChannelListener(&config.OSSignalsChannel)
 	signals.AddChannelListener(&egress.OSSignalsChannel)

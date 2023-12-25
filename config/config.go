@@ -16,7 +16,6 @@ import (
 type BunnyConfig struct {
 	EgressConfig  EgressConfig  `yaml:"egress"`
 	IngressConfig IngressConfig `yaml:"ingress"`
-	OTelConfig    OTelConfig    `yaml:"otel"`
 	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
@@ -44,10 +43,6 @@ type HTTPHeadersConfig struct {
 type IngressConfig struct {
 	Port int    `yaml:"port"`
 	Path string `yaml:"path"`
-}
-
-type OTelConfig struct {
-	MeterName string `yaml:"meterName"`
 }
 
 type SignalsConfig struct {
@@ -171,9 +166,6 @@ func generateDefaultConfig() *BunnyConfig {
 		IngressConfig: IngressConfig{
 			Port: 1312,
 			Path: "healthz",
-		},
-		OTelConfig: OTelConfig{
-			MeterName: "bunny",
 		},
 	}
 }

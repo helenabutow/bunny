@@ -12,7 +12,5 @@ egress:
 ingress:
   port: 1312
   path: "healthz"
-otel:
-  meterName: "bunny"
 signals:
   watchedProcessName: "sleep"

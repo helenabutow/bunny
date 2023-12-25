@@ -30,8 +30,10 @@ receivers:
           static_configs:
             - targets: [localhost:1312]
 
-# processors:
-#   batch:
+processors:
+  batch:
+    send_batch_max_size: 10000
+    timeout: 0s
 
 exporters:
   # Data sources: traces, metrics, logs
@@ -67,13 +69,13 @@ service:
   pipelines:
     # traces:
     #   receivers: [otlp]
-    #   processors: []
+    #   processors: [batch]
     #   exporters: [otlp]
     metrics:
       receivers: [hostmetrics, prometheus]
-      processors: []
+      processors: [batch]
       exporters: [prometheusremotewrite]
     # logs:
     #   receivers: [otlp]
-    #   processors: []
+    #   processors: [batch]
     #   exporters: [otlp]

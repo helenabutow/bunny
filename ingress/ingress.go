@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"bunny/config"
+	"bunny/otel"
 	"context"
 	"fmt"
 	"log/slog"
@@ -10,12 +11,18 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/attribute"
+	api "go.opentelemetry.io/otel/metric"
 )
 
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
+var meter *api.Meter = nil
+var extraAttributes *api.MeasurementOption = nil
+var healthAttempts int64 = 0
+var healthAttemptsCounter *api.Int64Counter = nil
 var httpServer *http.Server = nil
 
 func Init(sharedLogger *slog.Logger) {
@@ -38,8 +45,26 @@ func GoIngress(wg *sync.WaitGroup) {
 			}
 			logger.Info("received config update")
 			ingressConfig = &bunnyConfig.IngressConfig
+
+			meter = otel.Meter
+
+			// TODO-LOW: replace these attributes with ones read from config
+			// extra key/value pairs to include with each Prometheus metric
+			newExtraAttributes := api.WithAttributes(
+				attribute.Key("A").String("B"),
+				attribute.Key("C").String("D"),
+			)
+			extraAttributes = &newExtraAttributes
+
+			newHealthAttemptsCounter, err := (*meter).Int64Counter("ingress_health_attempts", api.WithDescription("the number of connections attempted to the health endpoint"))
+			if err != nil {
+				logger.Error("could not create healthAttemptsCounter", "err", err)
+			}
+			healthAttemptsCounter = &newHealthAttemptsCounter
+
 			shutdownHealthEndpoint()
 			startHTTPServer()
+
 			logger.Info("config update processing complete")
 
 		case signal, ok := <-OSSignalsChannel:
@@ -102,7 +127,12 @@ func startHTTPServer() {
 // this might be a starting point: https://github.com/prometheus/client_golang/blob/main/api/prometheus/v1/example_test.go#L54
 // (we should check if OpenTelemetry has a way to do this)
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
-	logger.Info("healthy")
+	logger.Debug("healthy")
+
+	healthAttempts++
+	logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
+	(*healthAttemptsCounter).Add(context.Background(), 1, *extraAttributes)
+
 	fmt.Fprintln(w, "healthy")
 }
 
