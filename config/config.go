@@ -16,13 +16,28 @@ import (
 type BunnyConfig struct {
 	EgressConfig  EgressConfig  `yaml:"egress"`
 	IngressConfig IngressConfig `yaml:"ingress"`
-	SignalsConfig SignalsConfig `yaml:"signals"`
 	OTelConfig    OTelConfig    `yaml:"otel"`
+	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
+// TODO-LOW: add support for GRPC, TCP, and exec probes
 type EgressConfig struct {
-	Port int    `yaml:"port"`
-	Path string `yaml:"path"`
+	HTTPGetActionConfig HTTPGetActionConfig `yaml:"httpGet"`
+	InitialDelaySeconds int                 `yaml:"initialDelaySeconds"`
+	PeriodSeconds       int                 `yaml:"periodSeconds"`
+	TimeoutSeconds      int                 `yaml:"timeoutSeconds"`
+}
+
+type HTTPGetActionConfig struct {
+	Host        *string             `yaml:"host"`
+	HTTPHeaders []HTTPHeadersConfig `yaml:"httpHeaders"`
+	Port        int                 `yaml:"port"`
+	Path        string              `yaml:"path"`
+}
+
+type HTTPHeadersConfig struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
 }
 
 type IngressConfig struct {

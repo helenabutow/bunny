@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"time"
 )
 
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var ticker = time.NewTicker(500 * time.Millisecond)
 var egressConfig *config.EgressConfig = nil
 
 func Init(sharedLogger *slog.Logger) {

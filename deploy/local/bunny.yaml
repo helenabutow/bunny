@@ -1,6 +1,14 @@
 egress:
-  port: 2624
-  path: "healthz"
+  httpGet:
+    host: "localhost"
+    httpHeaders:
+      - name: "x-bunny-test-header-name"
+        value: "test-value"
+    port: 2624
+    path: "healthz"
+  initialDelaySeconds: 5
+  periodSeconds: 3
+  timeoutSeconds: 1
 ingress:
   port: 1312
   path: "healthz"
