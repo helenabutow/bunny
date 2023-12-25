@@ -2,6 +2,7 @@ package main
 
 import (
 	"bunny/config"
+	"bunny/egress"
 	"bunny/ingress"
 	"bunny/otel"
 	"bunny/signals"
@@ -20,15 +21,18 @@ func main() {
 	// TODO-LOW: set garbage collection (using runtime/debug.SetGCPercent, if not already set via the GOGC env var)
 
 	// wiring up channels
+	config.AddChannelListener(&egress.ConfigUpdateChannel)
 	config.AddChannelListener(&ingress.ConfigUpdateChannel)
 	config.AddChannelListener(&otel.ConfigUpdateChannel)
 	config.AddChannelListener(&signals.ConfigUpdateChannel)
 	signals.AddChannelListener(&config.OSSignalsChannel)
+	signals.AddChannelListener(&egress.OSSignalsChannel)
 	signals.AddChannelListener(&ingress.OSSignalsChannel)
 	signals.AddChannelListener(&otel.OSSignalsChannel)
 
 	// do the rest of each package's init
 	config.Init(logger)
+	egress.Init(logger)
 	ingress.Init(logger)
 	otel.Init(logger)
 	signals.Init(logger)
@@ -36,6 +40,8 @@ func main() {
 	// start each go routinue for each package that has one
 	var wg sync.WaitGroup
 	go config.GoConfig(&wg)
+	wg.Add(1)
+	go egress.GoEgress(&wg)
 	wg.Add(1)
 	go ingress.GoIngress(&wg)
 	wg.Add(1)

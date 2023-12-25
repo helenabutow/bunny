@@ -52,8 +52,11 @@ func GoOTel(wg *sync.WaitGroup) {
 			// TODO-HIGH: it looks like we can't just create a new Meter if we want to rename the meter
 			// to repro, rename `otel.meterName` in `deploy/local/bunny.yaml`, wait a minute and then rename it back
 			// you should see the the `foo_total` metric in Mimir double with 2 `otel_scope_name` label values
+			// potential solutions:
+			// - set the meter name to an empty string, don't allow the name to be set via config, but allow users to create custom attributes (via the `api.WithAttributes` function) for each metric. This might, helpfully, remove the `otel_scope_name` label from being automatically generated (which I'm sure some people wouldn't want because of extra cost)
+			// - see if creating a new provider as well works around this
 			// ick
-			newMeter := provider.Meter(oTelConfig.MeterName)
+			newMeter := provider.Meter("")
 			meter = &(newMeter)
 
 			// TODO-HIGH: move this test data creation into a separate metrics package?

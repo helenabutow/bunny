@@ -9,7 +9,8 @@ receivers:
       load:
       memory:
       network:
-      process:
+      # this is pretty noisy when processes die mid-scrape
+      # process:
       processes:
       paging:
 
@@ -20,6 +21,7 @@ receivers:
       http:
 
   # Data sources: metrics
+  # TODO-MEDIUM: killing and restarting otelcol seems to double the values in Mimir
   prometheus:
     config:
       scrape_configs:

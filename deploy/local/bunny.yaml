@@ -1,3 +1,6 @@
+egress:
+  port: 2624
+  path: "healthz"
 ingress:
   port: 1312
   path: "healthz"

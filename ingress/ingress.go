@@ -107,3 +107,6 @@ func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 }
 
 // TODO-LOW: add rate limiting - see https://gobyexample.com/rate-limiting
+
+// TODO-HIGH: go golang tickers skew? Run an overnight test to figure it out
+// if we're going to use tickers in the selects for ingress and egress to
