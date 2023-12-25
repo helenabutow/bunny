@@ -20,6 +20,7 @@ type BunnyConfig struct {
 	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
+// TODO-MEDIUM: make sure the existing features listed below are actually implemented
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 type EgressConfig struct {
 	HTTPGetActionConfig HTTPGetActionConfig `yaml:"httpGet"`
