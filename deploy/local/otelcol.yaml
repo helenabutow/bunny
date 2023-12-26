@@ -21,7 +21,6 @@ receivers:
       http:
 
   # Data sources: metrics
-  # TODO-MEDIUM: killing and restarting otelcol seems to double the values in Mimir
   prometheus:
     config:
       scrape_configs:

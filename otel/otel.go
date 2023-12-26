@@ -59,6 +59,6 @@ func GoOTel(wg *sync.WaitGroup) {
 // TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog
 
 // TODO-LOW: each metric that ingress generates should toggle-able
-// if someone doesn't need a metric, we should waste cpu generating values for it
+// if someone doesn't need a metric, we shouldn't waste cpu generating values for it
 // and if they're opt-in, scrape configs get simpler and don't have to change as metrics are added/removed
 // (which would be a pain if someone was using annotation based scrape configs on their Pods)

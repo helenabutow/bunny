@@ -8,6 +8,7 @@ import (
 	"bunny/signals"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"sync"
 
 	"github.com/golang-cz/devslog"
@@ -17,8 +18,16 @@ func main() {
 	var logger *slog.Logger = configureLogger()
 	logger.Info("begin")
 
-	// TODO-LOW: set a memory limit (using runtime/debug.SetMemoryLimit, if not already set via the GOMEMLIMIT env var)
-	// TODO-LOW: set garbage collection (using runtime/debug.SetGCPercent, if not already set via the GOGC env var)
+	// TODO-LOW: write docs on how users should set the GOMEMLIMIT and GOGC env vars based on need (with reference to https://tip.golang.org/doc/gc-guide)
+	// with the defaults below, this seems to keep go_memstats_alloc_bytes at roughly 2-4 megs when idle
+	goMemLimitEnvVar := os.Getenv("GOMEMLIMIT")
+	goGCEnvVar := os.Getenv("GOGC")
+	if goMemLimitEnvVar == "" {
+		debug.SetMemoryLimit(1024 * 1024 * 64) // 64 megs
+	}
+	if goGCEnvVar == "" {
+		debug.SetGCPercent(10)
+	}
 
 	// wiring up channels
 	config.AddChannelListener(&egress.ConfigUpdateChannel)
