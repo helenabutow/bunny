@@ -37,7 +37,7 @@ func GoIngress(wg *sync.WaitGroup) {
 	logger.Info("Ingress is go!")
 
 	for {
-		logger.Info("waiting for config or signal")
+		logger.Debug("waiting for config or signal")
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
@@ -96,9 +96,7 @@ func shutdownHealthEndpoint() {
 func startHTTPServer() {
 	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
-	// TODO-MEDIUM: make *all* the endpoint paths configurable
-	// we have to do this because if we're running bunny as a sidecar, there will be conflicts with the "/metrics" endpoint for the app
-	mux.HandleFunc("/"+ingressConfig.Path, healthEndpoint)
+	mux.HandleFunc("/healthz", healthEndpoint)
 	mux.Handle("/metrics", promhttp.Handler())
 
 	// TODO-LOW: tweak http timeouts to something helpful?
@@ -116,7 +114,6 @@ func startHTTPServer() {
 	go func() {
 		err := httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
-			// Error starting or closing listener:
 			logger.Error("Error starting or closing listener", "err", err)
 		}
 	}()

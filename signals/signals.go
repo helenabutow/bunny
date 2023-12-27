@@ -41,7 +41,7 @@ func GoSignals(wg *sync.WaitGroup) {
 	logger.Info("Signals is go!")
 
 	for {
-		logger.Info("waiting for config or signal")
+		logger.Debug("waiting for config or signal")
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {

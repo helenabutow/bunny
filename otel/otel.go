@@ -59,8 +59,6 @@ func GoOTel(wg *sync.WaitGroup) {
 	logger.Info("ending go routine")
 }
 
-// TODO-MEDIUM: add support for Prometheus metrics (using OpenTelemetry)
-// we definitely want the memory usage and garbage collection metrics (see the Go Collector from https://github.com/prometheus/client_golang/blob/main/examples/gocollector/main.go)
-// also https://povilasv.me/prometheus-go-metrics/
-
 // TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog
+
+// TODO-MEDIUM: a useful way to get traces to console (for debugging): https://github.com/equinix-labs/otel-cli#examples

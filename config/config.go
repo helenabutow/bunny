@@ -21,6 +21,7 @@ type BunnyConfig struct {
 
 // TODO-MEDIUM: make sure the existing features listed below are actually implemented
 // TODO-LOW: add support for GRPC, TCP, and exec probes
+// TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
 	HTTPGetActionConfig HTTPGetActionConfig `yaml:"httpGet"`
 	InitialDelaySeconds int                 `yaml:"initialDelaySeconds"`
@@ -41,8 +42,7 @@ type HTTPHeadersConfig struct {
 }
 
 type IngressConfig struct {
-	Port int    `yaml:"port"`
-	Path string `yaml:"path"`
+	Port int `yaml:"port"`
 }
 
 type SignalsConfig struct {
@@ -165,7 +165,6 @@ func generateDefaultConfig() *BunnyConfig {
 	return &BunnyConfig{
 		IngressConfig: IngressConfig{
 			Port: 1312,
-			Path: "healthz",
 		},
 	}
 }

@@ -41,7 +41,7 @@ func GoEgress(wg *sync.WaitGroup) {
 	logger.Info("Egress is go!")
 
 	for {
-		logger.Info("waiting for config or signal")
+		logger.Debug("waiting for config or signal")
 		select {
 		case tickTime := <-ticker.C:
 			logger.Debug("tick received", "tickTime", tickTime)

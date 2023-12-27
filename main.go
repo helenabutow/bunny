@@ -9,13 +9,14 @@ import (
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"strings"
 	"sync"
 
 	"github.com/golang-cz/devslog"
 )
 
 func main() {
-	var logger *slog.Logger = configureLogger()
+	var logger *slog.Logger = configureLogger("main")
 	logger.Info("begin")
 
 	// TODO-LOW: write docs on how users should set the GOMEMLIMIT and GOGC env vars based on need (with reference to https://tip.golang.org/doc/gc-guide)
@@ -39,11 +40,11 @@ func main() {
 	signals.AddChannelListener(&otel.OSSignalsChannel)
 
 	// do the rest of each package's init
-	config.Init(logger)
-	egress.Init(logger)
-	ingress.Init(logger)
-	otel.Init(logger)
-	signals.Init(logger)
+	config.Init(configureLogger("config"))
+	egress.Init(configureLogger("egress"))
+	ingress.Init(configureLogger("ingress"))
+	otel.Init(configureLogger("otel"))
+	signals.Init(configureLogger("signals"))
 
 	// start each go routinue for each package that has one
 	var wg sync.WaitGroup
@@ -62,15 +63,12 @@ func main() {
 	logger.Info("end")
 }
 
-func configureLogger() *slog.Logger {
+func configureLogger(packageName string) *slog.Logger {
 	// TODO-LOW: support setting the log level via the config file as well
 	// (so that the initial log level is set via an env var and then is changeable via the config file)
 	// we may want to support having different log levels for different packages
-	// TODO-LOW: support changing the timezone to UTC
-	// a workaround in the meantime is just setting the TZ env var to "UTC"
-	// or with https://github.com/samber/slog-formatter#TimeFormatter
 	var logLevel = new(slog.LevelVar)
-	logLevelEnvVar := os.Getenv("LOG_LEVEL")
+	logLevelEnvVar := os.Getenv(strings.ToUpper(packageName) + "_LOG_LEVEL")
 	if logLevelEnvVar != "" {
 		switch logLevelEnvVar {
 		case "INFO", "info":
