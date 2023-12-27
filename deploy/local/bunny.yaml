@@ -7,7 +7,7 @@ egress:
     port: 2624
     path: "healthz"
   initialDelaySeconds: 5
-  periodSeconds: 3
+  periodSeconds: 1
   timeoutSeconds: 1
 ingress:
   port: 1312

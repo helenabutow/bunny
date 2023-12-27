@@ -47,7 +47,8 @@ func GoEgress(wg *sync.WaitGroup) {
 			logger.Debug("tick received", "tickTime", tickTime)
 
 			probeAttempts++
-			(*probeAttemptsCounter).Add(context.Background(), probeAttempts, *extraAttributes)
+			logger.Debug("probeAttempts has increased", "probeAttempts", probeAttempts)
+			(*probeAttemptsCounter).Add(context.Background(), 1, *extraAttributes)
 
 			// TODO-HIGH: implement performing the probe and collecting the metrics for it
 

@@ -25,6 +25,7 @@ tasks:
       LOG_HANDLER: text
       LOG_LEVEL: debug
       TZ: UTC
+      # OTEL_METRIC_EXPORT_INTERVAL: "1s"
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]
@@ -127,23 +128,47 @@ tasks:
     deps: [configure-docker, add-grafana-helm-repo, install-mimir, install-tempo]
     cmds:
       - helm repo update
-      - helm install grafana grafana/grafana --wait --create-namespace --namespace grafana --version 7.0.19 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/grafana-values.yaml"
+      - helm install grafana grafana/grafana --atomic --wait --create-namespace --namespace grafana --version 7.0.19 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/grafana-values.yaml"
     status:
       - helm list --namespace grafana --output json | jq --exit-status '.[] | select(.name == "grafana")'
 
   install-mimir:
     deps: [configure-docker, add-grafana-helm-repo]
     cmds:
-      - helm install mimir grafana/mimir-distributed --wait --create-namespace --namespace mimir --version 5.1.4 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/mimir-values.yaml"
+      - helm install mimir grafana/mimir-distributed --atomic --wait --create-namespace --namespace mimir --version 5.1.4 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/mimir-values.yaml"
     status:
-      - helm list --namespace mimir --output json | jq --exit-status '.[] | select(.name == "mirir")'
+      - helm list --namespace mimir --output json | jq --exit-status '.[] | select(.name == "mimir")'
 
   install-tempo:
     deps: [configure-docker, add-grafana-helm-repo]
     cmds:
-      - helm install tempo grafana/tempo-distributed --wait --create-namespace --namespace tempo --version 1.7.3 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/tempo-values.yaml"
+      - helm install tempo grafana/tempo-distributed --atomic --wait --create-namespace --namespace tempo --version 1.7.3 --values "{{.ROOT_DIR}}/deploy/kubernetes/grafana/tempo-values.yaml"
     status:
       - helm list --namespace tempo --output json | jq --exit-status '.[] | select(.name == "tempo")'
+  
+  delete-grafana-all:
+    deps: [delete-grafana, delete-mimir, delete-tempo]
+
+  delete-grafana:
+    cmds:
+      - helm delete --wait -n grafana grafana
+      - kubectl delete --ignore-not-found=true ns grafana
+    status:
+      - helm list --namespace grafana --output json | jq --exit-status '[ .[] | select(.name == "grafana") ] | length == 0'
+
+  delete-mimir:
+    cmds:
+      - helm delete --wait -n mimir mimir
+      - kubectl delete --ignore-not-found=true ns mimir
+    status:
+      - helm list --namespace mimir --output json | jq --exit-status '[ .[] | select(.name == "mimir") ] | length == 0'
+
+  delete-tempo:
+    cmds:
+      - helm delete --wait -n tempo tempo
+      - kubectl delete --ignore-not-found=true ns tempo
+    status:
+      - helm list --namespace tempo --output json | jq --exit-status '[ .[] | select(.name == "tempo") ] | length == 0'
 
   run-otelcol:
     cmds:
