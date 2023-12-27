@@ -8,15 +8,16 @@ tasks:
 
   build-bin:
     sources:
-      - ./**/*.go
+      - "{{.ROOT_DIR}}/src/bunny/**/*.go"
     generates:
       - bunny-macos
       - bunny-linux
+    dir: "{{.ROOT_DIR}}/src/bunny/"
     cmds:
       # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-macos ./
-      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny-macos ./
+      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bunny-macos" ./
       # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-linux ./
-      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o bunny-linux ./
+      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bunny-linux" ./
 
   run-bin:
     deps: [build-bin]
@@ -42,7 +43,7 @@ tasks:
   build-docker-image:
     deps: [build-bin, configure-docker]
     sources:
-      - "{{.ROOT_DIR}}/bunny"
+      - "{{.ROOT_DIR}}/bunny-linux"
       - "{{.ROOT_DIR}}/deploy/containers/bunny/Dockerfile"
     status:
       - docker image inspect bunny:latest
