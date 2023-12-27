@@ -56,6 +56,10 @@ func GoIngress(wg *sync.WaitGroup) {
 			)
 			extraAttributes = &newExtraAttributes
 
+			// TODO-LOW: each metric that ingress generates should toggle-able
+			// if someone doesn't need a metric, we shouldn't waste cpu generating values for it
+			// and if they're opt-in, scrape configs get simpler and don't have to change as metrics are added/removed
+			// (which would be a pain if someone was using annotation based scrape configs on their Pods)
 			newHealthAttemptsCounter, err := (*meter).Int64Counter("ingress_health_attempts", api.WithDescription("the number of connections attempted to the health endpoint"))
 			if err != nil {
 				logger.Error("could not create healthAttemptsCounter", "err", err)
@@ -96,6 +100,7 @@ func startHTTPServer() {
 	// we have to do this because if we're running bunny as a sidecar, there will be conflicts with the "/metrics" endpoint for the app
 	mux.HandleFunc("/"+ingressConfig.Path, healthEndpoint)
 	mux.Handle("/metrics", promhttp.Handler())
+
 	// TODO-LOW: tweak http timeouts to something helpful?
 	// this should also be settable in config
 	httpServer = &http.Server{

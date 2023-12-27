@@ -67,6 +67,10 @@ func GoEgress(wg *sync.WaitGroup) {
 			)
 			extraAttributes = &newExtraAttributes
 
+			// TODO-LOW: each metric that egress generates should toggle-able
+			// if someone doesn't need a metric, we shouldn't waste cpu generating values for it
+			// and if they're opt-in, scrape configs get simpler and don't have to change as metrics are added/removed
+			// (which would be a pain if someone was using annotation based scrape configs on their Pods)
 			newProbeAttemptsCounter, err := (*meter).Int64Counter("egress_probe_attempts", api.WithDescription("the number of probes attempted"))
 			if err != nil {
 				logger.Error("could not create probeAttemptsCounter", "err", err)

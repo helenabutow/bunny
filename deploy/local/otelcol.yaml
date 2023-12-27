@@ -51,12 +51,15 @@ exporters:
 
   # Data sources: metrics
   # see: https://grafana.com/docs/mimir/latest/configure/configure-otel-collector/#remote-write
+  # also: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/prometheusremotewriteexporter/README.md
   prometheusremotewrite:
     endpoint: http://localhost:30001/api/v1/push
-    # When using the official Prometheus (running via Docker)
-    # endpoint: 'http://prometheus:9090/api/v1/write', add:
-    # tls:
-    #   insecure: true
+    # disabling this as we already use the batch processor and don't need more delay
+    remote_write_queue:
+      enabled: false
+    # disabling this as it doesn't provide any useful info
+    target_info:
+      enabled: false
 
 extensions:
   health_check:
