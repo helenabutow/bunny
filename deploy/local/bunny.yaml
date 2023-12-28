@@ -4,11 +4,21 @@ egress:
     httpHeaders:
       - name: "x-bunny-test-header-name"
         value: "test-value"
+      - name: "x-bunny-test-header-name2"
+        value: "test-value2"
     port: 2624
     path: "healthz"
-  initialDelaySeconds: 5
-  periodSeconds: 1
-  timeoutSeconds: 1
+  initialDelaySeconds: 0
+  periodSeconds: 3
+  timeoutSeconds: 2
+  prometheus:
+    extraLabels:
+      - name: "bunny-test-label-name"
+        value: "bunny-test-label-value"
+    metricsEnabled:
+      - "egress_probe_attempts"
+      - "egress_probe_response_time"
+
 ingress:
   port: 1312
   path: "healthz"

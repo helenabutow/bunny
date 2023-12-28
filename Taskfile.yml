@@ -52,13 +52,12 @@ tasks:
       LOG_HANDLER: text
       MAIN_LOG_LEVEL: debug
       CONFIG_LOG_LEVEL: debug
-      EGRESS_LOG_LEVEL: info
+      EGRESS_LOG_LEVEL: debug
       INGRESS_LOG_LEVEL: debug
       OTEL_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: debug
       # TODO-LOW: document use of the TZ env var
       TZ: UTC
-      # OTEL_METRIC_EXPORT_INTERVAL: "1s"
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]

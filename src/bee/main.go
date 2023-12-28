@@ -13,7 +13,8 @@ import (
 )
 
 var logger *slog.Logger = nil
-var healthAttempts int64 = 0
+
+// var healthAttempts int64 = 0
 var httpServer *http.Server = nil
 
 func main() {
@@ -58,31 +59,35 @@ func startHTTPEndpoint() {
 	logger.Info("done starting HTTP server")
 }
 
-func healthEndpoint(w http.ResponseWriter, req *http.Request) {
-	healthAttempts++
-	logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
+func healthEndpoint(response http.ResponseWriter, request *http.Request) {
+	// healthAttempts++
+	// logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
+
+	// logger.Debug("headers", "request.Header", request.Header)
 
 	// health is based on a a sine wave
-	const period int64 = 10
-	const maxDelay float64 = 3.0
-	var top = float64(time.Now().Unix() % period)
-	var bottom = (float64(math.Pi)) / 2.0
-	var x float64 = top / bottom
-	var y = math.Sin(x)
-	var delay = time.Duration(math.Abs(y) * maxDelay * float64(time.Second))
-	logger.Debug("health calc", "top", top)
-	logger.Debug("health calc", "bottom", bottom)
-	logger.Debug("health calc", "x", x)
-	logger.Debug("health calc", "y", y)
-	logger.Debug("health calc", "delay", delay)
+	// TODO-HIGH: fix - this isn't a sine wave yet
+	// I suspect that we just need to play with the math below to make it work
+	const period int64 = 100
+	const maxDelay float64 = 1.0
+	var percent = float64(time.Now().Unix()%period) / float64(period)
+	var x float64 = 2.0 * (float64(math.Pi)) * percent
+	var y = (math.Sin(x) + 1.0) / 2.0
+	var delay = time.Duration(y * maxDelay * float64(time.Second))
+	logger.Debug("health calc",
+		"percent", percent,
+		"x", x,
+		"y", y,
+		"delay", delay,
+	)
 	time.Sleep(delay)
 	if y > 0.0 {
-		logger.Debug("healthy")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "healthy")
+		// logger.Debug("healthy")
+		response.WriteHeader(http.StatusOK)
+		fmt.Fprintln(response, "healthy")
 	} else {
-		logger.Debug("unhealthy")
-		w.WriteHeader(http.StatusRequestTimeout)
-		fmt.Fprintln(w, "unhealthy")
+		// logger.Debug("unhealthy")
+		response.WriteHeader(http.StatusRequestTimeout)
+		fmt.Fprintln(response, "unhealthy")
 	}
 }

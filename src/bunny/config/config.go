@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -19,14 +20,14 @@ type BunnyConfig struct {
 	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
-// TODO-MEDIUM: make sure the existing features listed below are actually implemented
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 // TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
-	HTTPGetActionConfig HTTPGetActionConfig `yaml:"httpGet"`
-	InitialDelaySeconds int                 `yaml:"initialDelaySeconds"`
-	PeriodSeconds       int                 `yaml:"periodSeconds"`
-	TimeoutSeconds      int                 `yaml:"timeoutSeconds"`
+	HTTPGetActionConfig *HTTPGetActionConfig `yaml:"httpGet"`
+	InitialDelaySeconds int                  `yaml:"initialDelaySeconds"`
+	PeriodSeconds       int                  `yaml:"periodSeconds"`
+	TimeoutSeconds      int                  `yaml:"timeoutSeconds"`
+	PrometheusConfig    PrometheusConfig     `yaml:"prometheus"`
 }
 
 type HTTPGetActionConfig struct {
@@ -37,6 +38,16 @@ type HTTPGetActionConfig struct {
 }
 
 type HTTPHeadersConfig struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
+type PrometheusConfig struct {
+	ExtraPrometheusLabels []ExtraPrometheusLabelsConfig `yaml:"extraLabels"`
+	MetricsEnabled        []string                      `yaml:"metricsEnabled"`
+}
+
+type ExtraPrometheusLabelsConfig struct {
 	Name  string `yaml:"name"`
 	Value string `yaml:"value"`
 }
@@ -101,7 +112,7 @@ func GoConfig(wg *sync.WaitGroup) {
 	}
 
 	// wait for messages
-	var configFileHash [sha256.Size]byte = sha256.Sum256([]byte(""))
+	var configFileHash string = ""
 	for {
 		select {
 		// wait for config file changes or for the config file to be created
@@ -125,10 +136,13 @@ func GoConfig(wg *sync.WaitGroup) {
 			if err != nil {
 				logger.Error("could not generate hash of config file")
 			}
-			newConfigFileHash := sha256.Sum256(data)
+			hash := sha256.New()
+			hash.Write(data)
+			newConfigFileHash := hex.EncodeToString(hash.Sum(nil))
 			if newConfigFileHash != configFileHash {
 				logger.Info("bunny config content has changed")
 				readBunnyConfigFile()
+				logger.Debug("after reading the config file", "data", string(data))
 				logger.Debug("after reading the config file", "configFileHash", configFileHash)
 				logger.Debug("after reading the config file", "newConfigFileHash", newConfigFileHash)
 				configFileHash = newConfigFileHash
