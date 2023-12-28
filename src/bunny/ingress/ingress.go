@@ -58,7 +58,7 @@ func GoIngress(wg *sync.WaitGroup) {
 
 			// TODO-LOW: each metric that ingress generates should toggle-able
 			// look at how this is implemented for egress
-			newHealthAttemptsCounter, err := (*meter).Int64Counter("ingress_health_attempts", api.WithDescription("the number of connections attempted to the health endpoint"))
+			newHealthAttemptsCounter, err := (*meter).Int64Counter("ingress_health_attempts")
 			if err != nil {
 				logger.Error("could not create healthAttemptsCounter", "err", err)
 			}
