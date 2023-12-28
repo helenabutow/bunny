@@ -103,8 +103,8 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 	}
 
 	// extra key/value pairs to include with each Prometheus metric
-	attributesCopy := make([]attribute.KeyValue, len(egressConfig.PrometheusConfig.ExtraPrometheusLabels))
-	for i, promLabelConfig := range egressConfig.PrometheusConfig.ExtraPrometheusLabels {
+	attributesCopy := make([]attribute.KeyValue, len(egressConfig.EgressPrometheusConfig.ExtraEgressPrometheusLabels))
+	for i, promLabelConfig := range egressConfig.EgressPrometheusConfig.ExtraEgressPrometheusLabels {
 		attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
 	}
 	newExtraAttributes := metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
@@ -112,7 +112,7 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 
 	// Prometheus metrics
 	var metricName string = "egress_probe_attempts"
-	if slices.Contains(egressConfig.PrometheusConfig.MetricsEnabled, metricName) {
+	if slices.Contains(egressConfig.EgressPrometheusConfig.MetricsEnabled, metricName) {
 		newProbeAttemptsCounter, err := (*meter).Int64Counter(metricName)
 		if err != nil {
 			logger.Error("could not create probeAttemptsCounter", "err", err)
@@ -122,11 +122,11 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 		probeAttemptsCounter = nil
 	}
 	metricName = "egress_probe_response_time"
-	if slices.Contains(egressConfig.PrometheusConfig.MetricsEnabled, metricName) {
+	if slices.Contains(egressConfig.EgressPrometheusConfig.MetricsEnabled, metricName) {
 		var unit = metric.WithUnit("ms")
 		newProbeResponseTimeGauge, err := (*meter).Int64ObservableGauge(metricName, unit, metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if probeResponseTime != nil {
-				o.Observe(probeResponseTime.Milliseconds())
+				o.Observe(probeResponseTime.Milliseconds(), *extraAttributes)
 				probeResponseTime = nil
 			}
 			return nil

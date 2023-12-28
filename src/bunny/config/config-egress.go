@@ -3,11 +3,11 @@ package config
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 // TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
-	HTTPGetActionConfig *HTTPGetActionConfig `yaml:"httpGet"`
-	InitialDelaySeconds int                  `yaml:"initialDelaySeconds"`
-	PeriodSeconds       int                  `yaml:"periodSeconds"`
-	TimeoutSeconds      int                  `yaml:"timeoutSeconds"`
-	PrometheusConfig    PrometheusConfig     `yaml:"prometheus"`
+	HTTPGetActionConfig    *HTTPGetActionConfig   `yaml:"httpGet"`
+	InitialDelaySeconds    int                    `yaml:"initialDelaySeconds"`
+	PeriodSeconds          int                    `yaml:"periodSeconds"`
+	TimeoutSeconds         int                    `yaml:"timeoutSeconds"`
+	EgressPrometheusConfig EgressPrometheusConfig `yaml:"prometheus"`
 }
 
 type HTTPGetActionConfig struct {
@@ -22,12 +22,12 @@ type HTTPHeadersConfig struct {
 	Value string `yaml:"value"`
 }
 
-type PrometheusConfig struct {
-	ExtraPrometheusLabels []ExtraPrometheusLabelsConfig `yaml:"extraLabels"`
-	MetricsEnabled        []string                      `yaml:"metricsEnabled"`
+type EgressPrometheusConfig struct {
+	ExtraEgressPrometheusLabels []ExtraEgressPrometheusLabelsConfig `yaml:"extraLabels"`
+	MetricsEnabled              []string                            `yaml:"metricsEnabled"`
 }
 
-type ExtraPrometheusLabelsConfig struct {
+type ExtraEgressPrometheusLabelsConfig struct {
 	Name  string `yaml:"name"`
 	Value string `yaml:"value"`
 }

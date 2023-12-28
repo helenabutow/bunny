@@ -52,7 +52,7 @@ tasks:
       LOG_HANDLER: text
       MAIN_LOG_LEVEL: debug
       CONFIG_LOG_LEVEL: debug
-      EGRESS_LOG_LEVEL: debug
+      EGRESS_LOG_LEVEL: info
       INGRESS_LOG_LEVEL: debug
       OTEL_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: debug

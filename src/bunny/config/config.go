@@ -22,9 +22,7 @@ type BunnyConfig struct {
 
 // EgressConfig is in config-egress.go
 
-type IngressConfig struct {
-	Port int `yaml:"port"`
-}
+// IngressConfig is in config-ingress.go
 
 type SignalsConfig struct {
 	WatchedProcessName *string `yaml:"watchedProcessName"`
@@ -148,7 +146,16 @@ func AddChannelListener(configUpdateChannel *(chan BunnyConfig)) {
 func generateDefaultConfig() *BunnyConfig {
 	return &BunnyConfig{
 		IngressConfig: IngressConfig{
-			Port: 1312,
+			HTTPServerConfig: HTTPServerConfig{
+				Port:              1312,
+				HealthPath:        "healthz",
+				MetricsPath:       "metrics",
+				ReadTimeout:       5,
+				ReadHeaderTimeout: 5,
+				WriteTimeout:      10,
+				IdleTimeout:       2,
+				MaxHeaderBytes:    10000,
+			},
 		},
 	}
 }

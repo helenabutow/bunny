@@ -13,14 +13,26 @@ egress:
   timeoutSeconds: 2
   prometheus:
     extraLabels:
-      - name: "bunny-test-label-name"
-        value: "bunny-test-label-value"
+      - name: "bunny-test-egress-label-name"
+        value: "bunny-test-egress-label-value"
     metricsEnabled:
       - "egress_probe_attempts"
       - "egress_probe_response_time"
-
 ingress:
-  port: 1312
-  path: "healthz"
+  httpServer:
+    port: 1312
+    healthPath: "healthz"
+    metricsPath: "metrics"
+    readTimeout: 5
+    readHeaderTimeout: 5
+    writeTimeout: 10
+    idleTimeout: 2
+    maxHeaderBytes: 10000
+  prometheus:
+    extraLabels:
+      - name: "bunny-test-ingress-label-name"
+        value: "bunny-test-ingress-label-value"
+    metricsEnabled:
+      - "ingress_health_attempts"
 signals:
   watchedProcessName: "sleep"

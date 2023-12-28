@@ -8,21 +8,23 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
-	api "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
-var meter *api.Meter = nil
-var extraAttributes *api.MeasurementOption = nil
+var meter *metric.Meter = nil
+var extraAttributes *metric.MeasurementOption = nil
 var healthAttempts int64 = 0
-var healthAttemptsCounter *api.Int64Counter = nil
+var healthAttemptsCounter *metric.Int64Counter = nil
 var httpServer *http.Server = nil
 
 func Init(sharedLogger *slog.Logger) {
@@ -48,21 +50,25 @@ func GoIngress(wg *sync.WaitGroup) {
 
 			meter = otel.Meter
 
-			// TODO-LOW: replace these attributes with ones read from config
 			// extra key/value pairs to include with each Prometheus metric
-			newExtraAttributes := api.WithAttributes(
-				attribute.Key("A").String("B"),
-				attribute.Key("C").String("D"),
-			)
+			attributesCopy := make([]attribute.KeyValue, len(ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels))
+			for i, promLabelConfig := range ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels {
+				attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
+			}
+			newExtraAttributes := metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
 			extraAttributes = &newExtraAttributes
 
-			// TODO-LOW: each metric that ingress generates should toggle-able
-			// look at how this is implemented for egress
-			newHealthAttemptsCounter, err := (*meter).Int64Counter("ingress_health_attempts")
-			if err != nil {
-				logger.Error("could not create healthAttemptsCounter", "err", err)
+			// Prometheus metrics
+			var metricName string = "ingress_health_attempts"
+			if slices.Contains(ingressConfig.IngressPrometheusConfig.MetricsEnabled, metricName) {
+				newHealthAttemptsCounter, err := (*meter).Int64Counter(metricName)
+				if err != nil {
+					logger.Error("could not create healthAttemptsCounter", "err", err)
+				}
+				healthAttemptsCounter = &newHealthAttemptsCounter
+			} else {
+				healthAttemptsCounter = nil
 			}
-			healthAttemptsCounter = &newHealthAttemptsCounter
 
 			shutdownHealthEndpoint()
 			startHTTPServer()
@@ -94,18 +100,16 @@ func shutdownHealthEndpoint() {
 func startHTTPServer() {
 	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", healthEndpoint)
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc(ingressConfig.HTTPServerConfig.HealthPath, healthEndpoint)
+	mux.Handle(ingressConfig.HTTPServerConfig.MetricsPath, promhttp.Handler())
 
-	// TODO-LOW: tweak http timeouts to something helpful?
-	// this should also be settable in config
 	httpServer = &http.Server{
-		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.Port),
-		ReadTimeout:       0,
-		ReadHeaderTimeout: 0,
-		WriteTimeout:      0,
-		IdleTimeout:       0,
-		MaxHeaderBytes:    0,
+		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.HTTPServerConfig.Port),
+		ReadTimeout:       time.Duration(ingressConfig.HTTPServerConfig.ReadTimeout),
+		ReadHeaderTimeout: time.Duration(ingressConfig.HTTPServerConfig.ReadHeaderTimeout),
+		WriteTimeout:      time.Duration(ingressConfig.HTTPServerConfig.WriteTimeout),
+		IdleTimeout:       time.Duration(ingressConfig.HTTPServerConfig.IdleTimeout),
+		MaxHeaderBytes:    ingressConfig.HTTPServerConfig.MaxHeaderBytes,
 		Handler:           mux,
 	}
 
