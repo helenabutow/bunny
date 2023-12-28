@@ -14,7 +14,6 @@ import (
 
 var logger *slog.Logger = nil
 
-// var healthAttempts int64 = 0
 var httpServer *http.Server = nil
 
 func main() {
@@ -60,14 +59,9 @@ func startHTTPEndpoint() {
 }
 
 func healthEndpoint(response http.ResponseWriter, request *http.Request) {
-	// healthAttempts++
-	// logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
-
-	// logger.Debug("headers", "request.Header", request.Header)
+	logger.Debug("headers", "request.Header", request.Header)
 
 	// health is based on a a sine wave
-	// TODO-HIGH: fix - this isn't a sine wave yet
-	// I suspect that we just need to play with the math below to make it work
 	const period int64 = 100
 	const maxDelay float64 = 1.0
 	var percent = float64(time.Now().Unix()%period) / float64(period)
@@ -82,11 +76,11 @@ func healthEndpoint(response http.ResponseWriter, request *http.Request) {
 	)
 	time.Sleep(delay)
 	if y > 0.0 {
-		// logger.Debug("healthy")
+		logger.Debug("healthy")
 		response.WriteHeader(http.StatusOK)
 		fmt.Fprintln(response, "healthy")
 	} else {
-		// logger.Debug("unhealthy")
+		logger.Debug("unhealthy")
 		response.WriteHeader(http.StatusRequestTimeout)
 		fmt.Fprintln(response, "unhealthy")
 	}

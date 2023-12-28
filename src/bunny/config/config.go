@@ -20,6 +20,8 @@ type BunnyConfig struct {
 	SignalsConfig SignalsConfig `yaml:"signals"`
 }
 
+// TODO-HIGH: move the structs for egress into "config-egress.go"
+// (if we do the same for ingress, it'll make it a lot easier to find the definition of a struct)
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 // TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
