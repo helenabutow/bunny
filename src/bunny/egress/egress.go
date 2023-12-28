@@ -128,6 +128,7 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 		newProbeResponseTimeGauge, err := (*meter).Int64ObservableGauge(metricName, unit, metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if probeResponseTime != nil {
 				o.Observe(probeResponseTime.Milliseconds())
+				probeResponseTime = nil
 			}
 			return nil
 		}))
