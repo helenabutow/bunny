@@ -6,7 +6,20 @@ interval: '200ms'
 tasks:
 # top level task targets
 
-  build-bin:
+  build-bee:
+    sources:
+      - "{{.ROOT_DIR}}/src/bee/**/*.go"
+    generates:
+      - bee-macos
+      - bee-linux
+    dir: "{{.ROOT_DIR}}/src/bee/"
+    cmds:
+      # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bee-macos ./
+      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bee-macos" ./
+      # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bee-linux ./
+      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bee-linux" ./
+
+  build-bunny:
     sources:
       - "{{.ROOT_DIR}}/src/bunny/**/*.go"
     generates:
@@ -19,8 +32,21 @@ tasks:
       # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-linux ./
       - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bunny-linux" ./
 
-  run-bin:
-    deps: [build-bin]
+  run-bee:
+    deps: [build-bee]
+    env:
+      BEE_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bee.yaml"
+      LOG_HANDLER: text
+      MAIN_LOG_LEVEL: debug
+      TZ: UTC
+    cmds:
+      - cmd: ./bee-macos
+        platforms: [darwin]
+      - cmd: ./bee-linux
+        platforms: [linux]
+
+  run-bunny:
+    deps: [build-bunny]
     env:
       BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
       LOG_HANDLER: text
