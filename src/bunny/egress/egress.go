@@ -14,7 +14,6 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	api "go.opentelemetry.io/otel/metric"
 )
 
 var logger *slog.Logger = nil
@@ -23,13 +22,13 @@ var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ticker *time.Ticker = nil
 var initialDelayTime time.Time = time.Now()
 var egressConfig *config.EgressConfig = nil
-var meter *api.Meter = nil
+var meter *metric.Meter = nil
 var httpProbeRequest *http.Request = nil
 var httpProbeClient *http.Client = nil
-var extraAttributes *api.MeasurementOption = nil
+var extraAttributes *metric.MeasurementOption = nil
 var probeAttempts int64 = 0
-var probeAttemptsCounter *api.Int64Counter = nil
-var probeResponseTimeGauge *api.Int64ObservableGauge = nil
+var probeAttemptsCounter *metric.Int64Counter = nil
+var probeResponseTimeGauge *metric.Int64ObservableGauge = nil //lint:ignore U1000 we actually do use it (partly via the WithInt64Callback func)
 var probeResponseTime *time.Duration = nil
 
 func Init(sharedLogger *slog.Logger) {
@@ -108,7 +107,7 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 	for i, promLabelConfig := range egressConfig.PrometheusConfig.ExtraPrometheusLabels {
 		attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
 	}
-	newExtraAttributes := api.WithAttributeSet(attribute.NewSet(attributesCopy...))
+	newExtraAttributes := metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
 	extraAttributes = &newExtraAttributes
 
 	// Prometheus metrics
