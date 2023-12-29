@@ -105,10 +105,10 @@ func startHTTPServer() {
 
 	httpServer = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.HTTPServerConfig.Port),
-		ReadTimeout:       time.Duration(ingressConfig.HTTPServerConfig.ReadTimeout),
-		ReadHeaderTimeout: time.Duration(ingressConfig.HTTPServerConfig.ReadHeaderTimeout),
-		WriteTimeout:      time.Duration(ingressConfig.HTTPServerConfig.WriteTimeout),
-		IdleTimeout:       time.Duration(ingressConfig.HTTPServerConfig.IdleTimeout),
+		ReadTimeout:       time.Duration(ingressConfig.HTTPServerConfig.ReadTimeout) * time.Second,
+		ReadHeaderTimeout: time.Duration(ingressConfig.HTTPServerConfig.ReadHeaderTimeout) * time.Second,
+		WriteTimeout:      time.Duration(ingressConfig.HTTPServerConfig.WriteTimeout) * time.Second,
+		IdleTimeout:       time.Duration(ingressConfig.HTTPServerConfig.IdleTimeout) * time.Second,
 		MaxHeaderBytes:    ingressConfig.HTTPServerConfig.MaxHeaderBytes,
 		Handler:           mux,
 	}
@@ -142,3 +142,6 @@ func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 }
 
 // TODO-LOW: add rate limiting - see https://gobyexample.com/rate-limiting
+// instead, we might have to do this via the `healthEndpoint` func by keeping a request rate metric
+// and rejecting requests that exceed the rate
+// see: https://www.alexedwards.net/blog/how-to-rate-limit-http-requests

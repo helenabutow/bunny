@@ -1,4 +1,6 @@
 egress:
+  #  TODO-HIGH: we meed to be able to set separate probes for liveness, readiness, and startup
+  # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
   httpGet:
     host: "localhost"
     httpHeaders:
@@ -21,8 +23,11 @@ egress:
 ingress:
   httpServer:
     port: 1312
-    healthPath: "healthz"
-    metricsPath: "metrics"
+    # TODO-MEDIUM: it would be helpful to have separate paths for each of the liveness, readiness, and startup probes in case we go with the PromQL idea
+    # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
+    # TODO-HIGH: bug - make the leading `/` optional (i.e. check for it and add it if neccessary in ingress.startHTTPServer)
+    healthPath: "/healthz"
+    metricsPath: "/metrics"
     readTimeout: 5
     readHeaderTimeout: 5
     writeTimeout: 10

@@ -56,7 +56,6 @@ tasks:
       INGRESS_LOG_LEVEL: debug
       OTEL_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: debug
-      # TODO-LOW: document use of the TZ env var
       TZ: UTC
     cmds:
       - cmd: ./bunny-macos
