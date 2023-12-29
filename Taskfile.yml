@@ -204,3 +204,31 @@ tasks:
   run-otelcol:
     cmds:
       - otelcol --config="{{.ROOT_DIR}}/deploy/local/otelcol.yaml"
+
+  add-prometheus-helm-repo:
+    cmds:
+      - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    status:
+      - helm repo list --output json | jq --exit-status '.[] | select(.name == "prometheus-community")'
+  
+  install-prometheus:
+    deps: [configure-docker, add-prometheus-helm-repo]
+    cmds:
+      - helm install prometheus prometheus-community/prometheus --atomic --wait --create-namespace --namespace prometheus --version 25.8.2 --values "{{.ROOT_DIR}}/deploy/kubernetes/prometheus/prometheus-values.yaml"
+    status:
+      - helm list --namespace prometheus --output json | jq --exit-status '.[] | select(.name == "prometheus")'
+
+  delete-prometheus:
+    cmds:
+      - helm delete --wait -n prometheus prometheus
+      - kubectl delete --ignore-not-found=true ns prometheus
+    status:
+      - helm list --namespace prometheus --output json | jq --exit-status '[ .[] | select(.name == "prometheus") ] | length == 0'
+  
+  run-prometheus:
+    cmds:
+      - |
+        prometheus --config.file="{{.ROOT_DIR}}/deploy/local/prometheus.yaml" \
+          --storage.tsdb.retention.time=1h \
+          --storage.tsdb.retention.size=64MB \
+          --storage.tsdb.path=/tmp/prometheus
