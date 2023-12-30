@@ -27,6 +27,12 @@ A (likely incomplete) feature list:
 * Performance confidently tweaking probes to ensure that provisioned Pod capacity is utilized
 * Engineering using traces to understand which downstream components most often cause probe failure
 
+# Alternatives
+
+Some of the functionality of Bunny could be recreated using different tools or patterns. In particular:
+* basing a probe on a Prometheus query result could be implemented using an exec probe and `promtool`
+* adding traces to HTTP probes could be done by adding an NGINX proxy: https://opentelemetry.io/blog/2022/instrument-nginx/
+
 # Deployment
 
 Bunny runs as a sidecar container within the same Pod as your app's container.

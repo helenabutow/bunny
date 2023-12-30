@@ -131,6 +131,7 @@ func startHTTPServer() {
 // (though the round trip time for getting the newest metrics might make that less useful)
 // this might be a starting point: https://github.com/prometheus/client_golang/blob/main/api/prometheus/v1/example_test.go#L54
 // (we should check if OpenTelemetry has a way to do this)
+// Mimir has an endpoint that we can query against: http://localhost:30001/prometheus/api/v1/query
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 	logger.Debug("healthy")
 

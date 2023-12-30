@@ -1,3 +1,6 @@
+# TODO-LOW: need to switch to a scratch container
+# since we're now always running Delve locally, we don't need it in the container
+# we need to confirm that Telepresence continues to work after the change
 FROM --platform=linux/arm64 alpine
 
 WORKDIR /
