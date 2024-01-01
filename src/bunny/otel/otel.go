@@ -1,4 +1,4 @@
-package otel
+package telemetry
 
 import (
 	"bunny/config"
@@ -9,7 +9,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
-	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -18,11 +17,10 @@ var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var exporter *prometheus.Exporter = nil
 var provider *metric.MeterProvider = nil
-var Meter *api.Meter = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
-	logger.Info("OTel initializing")
+	logger.Info("Telemetry initializing")
 
 	// setup Prometheus
 	// the HTTP endpoint is in the ingress package
@@ -33,21 +31,16 @@ func Init(sharedLogger *slog.Logger) {
 		logger.Error("error while creating Prometheus exporter", "err", err)
 	}
 	provider = metric.NewMeterProvider(metric.WithReader(exporter))
-
-	// ick
-	newMeter := provider.Meter("")
-	Meter = &(newMeter)
-
 	// register a global default meter provider so that any libraries that we depend on have one to use
 	otel.SetMeterProvider(provider)
 
-	logger.Info("OTel is initialized")
+	logger.Info("Telemetry is initialized")
 }
 
-func GoOTel(wg *sync.WaitGroup) {
+func GoTelemetry(wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	logger.Info("OTel is go!")
+	logger.Info("Telemetry is go!")
 
 	logger.Info("waiting for signal")
 	signal, ok := <-OSSignalsChannel

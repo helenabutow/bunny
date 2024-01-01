@@ -14,7 +14,7 @@ A (likely incomplete) feature list:
 * logging:
     * JSON or console formatted logs
     * different log levels for each component of Bunny (e.g. ingress and egress related code can have different logging levels)
-* otel:
+* telemetry:
     * support for Prometheus (for metrics) and OTLP endpoints (for traces)
     * extensible to other metrics and trace systems which OpenTelemetry supports
 * signals:

@@ -2,12 +2,12 @@ package egress
 
 import (
 	"bunny/config"
-	"bunny/otel"
 	"log/slog"
 	"os"
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -20,6 +20,7 @@ var egressConfig *config.EgressConfig = nil
 var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
 var probeResponseTimes map[string]*time.Duration = make(map[string]*time.Duration)
+var probeResponseTimesMutex sync.Mutex
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -65,7 +66,8 @@ func GoEgress(wg *sync.WaitGroup) {
 func updateConfig(bunnyConfig *config.BunnyConfig) {
 	logger.Info("received config update")
 	egressConfig = &bunnyConfig.EgressConfig
-	meter = otel.Meter
+	newMeter := otel.GetMeterProvider().Meter("bunny/egress")
+	meter = &newMeter
 
 	// process probe configs
 	probes = []Probe{}

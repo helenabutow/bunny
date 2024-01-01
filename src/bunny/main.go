@@ -5,8 +5,8 @@ import (
 	"bunny/egress"
 	"bunny/ingress"
 	"bunny/logging"
-	"bunny/otel"
 	"bunny/signals"
+	"bunny/telemetry"
 	"log/slog"
 	"os"
 	"runtime/debug"
@@ -34,13 +34,13 @@ func main() {
 	signals.AddChannelListener(&config.OSSignalsChannel)
 	signals.AddChannelListener(&egress.OSSignalsChannel)
 	signals.AddChannelListener(&ingress.OSSignalsChannel)
-	signals.AddChannelListener(&otel.OSSignalsChannel)
+	signals.AddChannelListener(&telemetry.OSSignalsChannel)
 
 	// do the rest of each package's init
 	config.Init(logging.ConfigureLogger("config"))
 	egress.Init(logging.ConfigureLogger("egress"))
 	ingress.Init(logging.ConfigureLogger("ingress"))
-	otel.Init(logging.ConfigureLogger("otel"))
+	telemetry.Init(logging.ConfigureLogger("telemetry"))
 	signals.Init(logging.ConfigureLogger("signals"))
 
 	// start each go routinue for each package that has one
@@ -51,7 +51,7 @@ func main() {
 	wg.Add(1)
 	go ingress.GoIngress(&wg)
 	wg.Add(1)
-	go otel.GoOTel(&wg)
+	go telemetry.GoTelemetry(&wg)
 	wg.Add(1)
 	go signals.GoSignals(&wg)
 	wg.Add(1)

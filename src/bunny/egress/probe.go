@@ -81,6 +81,8 @@ func newResponseTimeMetric(egressMetricsConfig *config.EgressMetricsConfig) *Res
 			logger.Error("unknown metric name within callback", "err", err)
 			return err
 		}
+		probeResponseTimesMutex.Lock()
+		defer probeResponseTimesMutex.Unlock()
 		probeResponseTime := probeResponseTimes[metricName]
 		if probeResponseTime != nil {
 			o.Observe(probeResponseTime.Milliseconds(), extraAttributes)
@@ -158,6 +160,8 @@ func (action HTTPGetAction) act(attemptsMetric *AttemptsMetric, responseTimeMetr
 		}
 		var newProbeResponseTime time.Duration = endTime.Sub(startTime)
 		if responseTimeMetric != nil {
+			probeResponseTimesMutex.Lock()
+			defer probeResponseTimesMutex.Unlock()
 			probeResponseTimes[responseTimeMetric.Name] = &newProbeResponseTime
 		}
 	}()

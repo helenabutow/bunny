@@ -54,7 +54,7 @@ tasks:
       CONFIG_LOG_LEVEL: debug
       EGRESS_LOG_LEVEL: debug
       INGRESS_LOG_LEVEL: debug
-      OTEL_LOG_LEVEL: debug
+      TELEMETRY_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: debug
       TZ: UTC
     cmds:

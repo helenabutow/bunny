@@ -2,7 +2,6 @@ package ingress
 
 import (
 	"bunny/config"
-	"bunny/otel"
 	"context"
 	"fmt"
 	"log/slog"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -48,8 +48,8 @@ func GoIngress(wg *sync.WaitGroup) {
 			}
 			logger.Info("received config update")
 			ingressConfig = &bunnyConfig.IngressConfig
-
-			meter = otel.Meter
+			newMeter := otel.GetMeterProvider().Meter("bunny/ingress")
+			meter = &newMeter
 
 			// extra key/value pairs to include with each Prometheus metric
 			attributesCopy := make([]attribute.KeyValue, len(ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels))
