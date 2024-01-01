@@ -4,11 +4,32 @@ package config
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 // TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
-	HTTPGetActionConfig    *HTTPGetActionConfig   `yaml:"httpGet"`
-	InitialDelaySeconds    int                    `yaml:"initialDelaySeconds"`
-	PeriodSeconds          int                    `yaml:"periodSeconds"`
-	TimeoutSeconds         int                    `yaml:"timeoutSeconds"`
-	EgressPrometheusConfig EgressPrometheusConfig `yaml:"prometheus"`
+	EgressProbeConfigs  []EgressProbeConfig `yaml:"probes"`
+	InitialDelaySeconds int                 `yaml:"initialDelaySeconds"`
+	PeriodSeconds       int                 `yaml:"periodSeconds"`
+	TimeoutSeconds      int                 `yaml:"timeoutSeconds"`
+}
+
+type EgressProbeConfig struct {
+	Name                     string                   `yaml:"name"`
+	EgressProbeMetricsConfig EgressProbeMetricsConfig `yaml:"metrics"`
+	HTTPGetActionConfig      *HTTPGetActionConfig     `yaml:"httpGet"`
+}
+
+type EgressProbeMetricsConfig struct {
+	Attempts     EgressMetricsConfig `yaml:"attempts"`
+	ResponseTime EgressMetricsConfig `yaml:"responseTime"`
+}
+
+type EgressMetricsConfig struct {
+	Enabled                  bool                            `yaml:"enabled"`
+	Name                     string                          `yaml:"name"`
+	EgressMetricsExtraLabels []EgressMetricsExtraLabelConfig `yaml:"extraLabels"`
+}
+
+type EgressMetricsExtraLabelConfig struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
 }
 
 type HTTPGetActionConfig struct {
@@ -19,16 +40,6 @@ type HTTPGetActionConfig struct {
 }
 
 type HTTPHeadersConfig struct {
-	Name  string `yaml:"name"`
-	Value string `yaml:"value"`
-}
-
-type EgressPrometheusConfig struct {
-	ExtraEgressPrometheusLabels []ExtraEgressPrometheusLabelsConfig `yaml:"extraLabels"`
-	MetricsEnabled              []string                            `yaml:"metricsEnabled"`
-}
-
-type ExtraEgressPrometheusLabelsConfig struct {
 	Name  string `yaml:"name"`
 	Value string `yaml:"value"`
 }

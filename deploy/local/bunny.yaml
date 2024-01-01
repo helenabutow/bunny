@@ -1,38 +1,60 @@
 egress:
-  #  TODO-HIGH: we meed to be able to set separate probes for liveness, readiness, and startup
+  #  TODO-LOW: docs on how to create liveness, readiness, and startup probe equivalents
   # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
-  httpGet:
-    host: "localhost"
-    httpHeaders:
-      - name: "x-bunny-test-header-name"
-        value: "test-value"
-      - name: "x-bunny-test-header-name2"
-        value: "test-value2"
-    port: 2624
-    path: "healthz"
+  probes:
+    - name: "alpha"
+      metrics:
+        attempts:
+          name: "egress_probe_alpha_attempts"
+          enabled: true
+          extraLabels:
+            - name: "egress-probe-alpha-test-label-name"
+              value: "egress-probe-alpha-test-label-value"
+        responseTime:
+          name: "egress_probe_alpha_response_time"
+          enabled: true
+          extraLabels: []
+      httpGet:
+        host: "localhost"
+        httpHeaders:
+          - name: "x-bunny-test-header-name"
+            value: "test-value"
+          - name: "x-bunny-test-header-name2"
+            value: "test-value2"
+        port: 2624
+        path: "healthz"
+    - name: "beta"
+      metrics:
+        attempts:
+          name: "egress_probe_beta_attempts"
+          enabled: false
+          extraLabels:
+            - name: "egress-probe-beta-test-label-name"
+              value: "egress-probe-beta-test-label-value"
+        responseTime:
+          name: "egress_probe_beta_response_time"
+          enabled: true
+      httpGet:
+        host: "localhost"
+        port: 2624
+        path: "healthz"
   initialDelaySeconds: 0
   periodSeconds: 3
   timeoutSeconds: 2
-  prometheus:
-    extraLabels:
-      - name: "bunny-test-egress-label-name"
-        value: "bunny-test-egress-label-value"
-    metricsEnabled:
-      - "egress_probe_attempts"
-      - "egress_probe_response_time"
 ingress:
   httpServer:
     port: 1312
     # TODO-MEDIUM: it would be helpful to have separate paths for each of the liveness, readiness, and startup probes in case we go with the PromQL idea
     # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
-    # TODO-HIGH: bug - make the leading `/` optional (i.e. check for it and add it if neccessary in ingress.startHTTPServer)
-    healthPath: "/healthz"
-    metricsPath: "/metrics"
+    healthPath: "healthz"
+    metricsPath: "metrics"
+    # TODO-LOW: append "Seconds" to the name below (it's helpful for understanding the units being dealt with)
     readTimeout: 5
     readHeaderTimeout: 5
     writeTimeout: 10
     idleTimeout: 2
     maxHeaderBytes: 10000
+  # TODO-LOW: rename this to "metrics" (to match up with what we use in egress)
   prometheus:
     extraLabels:
       - name: "bunny-test-ingress-label-name"

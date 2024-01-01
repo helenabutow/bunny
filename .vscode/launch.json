@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}",
+            "program": "${workspaceFolder}/src/bunny/",
             // "stopOnEntry": true,
             // "envFile": "${workspaceFolder}/deploy/kubernetes/bunny.telepresence-env",
             "env": {

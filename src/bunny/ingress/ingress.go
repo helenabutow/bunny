@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,8 +101,8 @@ func shutdownHealthEndpoint() {
 func startHTTPServer() {
 	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
-	mux.HandleFunc(ingressConfig.HTTPServerConfig.HealthPath, healthEndpoint)
-	mux.Handle(ingressConfig.HTTPServerConfig.MetricsPath, promhttp.Handler())
+	mux.HandleFunc(ensureLeadingSlash(ingressConfig.HTTPServerConfig.HealthPath), healthEndpoint)
+	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.MetricsPath), promhttp.Handler())
 
 	httpServer = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.HTTPServerConfig.Port),
@@ -120,6 +121,13 @@ func startHTTPServer() {
 		}
 	}()
 	logger.Info("done starting HTTP server")
+}
+
+func ensureLeadingSlash(path string) string {
+	if strings.Index(path, "/") != 0 {
+		return "/" + path
+	}
+	return path
 }
 
 // TODO-MEDIUM: consider allowing PromQL to be used to determine endpoint result
