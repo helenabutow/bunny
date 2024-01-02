@@ -106,10 +106,10 @@ func startHTTPServer() {
 
 	httpServer = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.HTTPServerConfig.Port),
-		ReadTimeout:       time.Duration(ingressConfig.HTTPServerConfig.ReadTimeout) * time.Second,
-		ReadHeaderTimeout: time.Duration(ingressConfig.HTTPServerConfig.ReadHeaderTimeout) * time.Second,
-		WriteTimeout:      time.Duration(ingressConfig.HTTPServerConfig.WriteTimeout) * time.Second,
-		IdleTimeout:       time.Duration(ingressConfig.HTTPServerConfig.IdleTimeout) * time.Second,
+		ReadTimeout:       time.Duration(ingressConfig.HTTPServerConfig.ReadTimeoutMilliseconds) * time.Millisecond,
+		ReadHeaderTimeout: time.Duration(ingressConfig.HTTPServerConfig.ReadHeaderTimeoutMilliseconds) * time.Millisecond,
+		WriteTimeout:      time.Duration(ingressConfig.HTTPServerConfig.WriteTimeoutMilliseconds) * time.Millisecond,
+		IdleTimeout:       time.Duration(ingressConfig.HTTPServerConfig.IdleTimeoutMilliseconds) * time.Millisecond,
 		MaxHeaderBytes:    ingressConfig.HTTPServerConfig.MaxHeaderBytes,
 		Handler:           mux,
 	}

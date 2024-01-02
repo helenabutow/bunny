@@ -1,13 +1,12 @@
 package config
 
-// TODO-MEDIUM: support millisecond periods, timeouts, and delays (mainly so that period and timeout can be less than 1 second)
 // TODO-LOW: add support for GRPC, TCP, and exec probes
 // TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
-	EgressProbeConfigs  []EgressProbeConfig `yaml:"probes"`
-	InitialDelaySeconds int                 `yaml:"initialDelaySeconds"`
-	PeriodSeconds       int                 `yaml:"periodSeconds"`
-	TimeoutSeconds      int                 `yaml:"timeoutSeconds"`
+	EgressProbeConfigs       []EgressProbeConfig `yaml:"probes"`
+	InitialDelayMilliseconds int                 `yaml:"initialDelayMilliseconds"`
+	PeriodMilliseconds       int                 `yaml:"periodMilliseconds"`
+	TimeoutMilliseconds      int                 `yaml:"timeoutMilliseconds"`
 }
 
 type EgressProbeConfig struct {

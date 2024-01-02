@@ -21,6 +21,7 @@ var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
 var probeResponseTimes map[string]*time.Duration = make(map[string]*time.Duration)
 var probeResponseTimesMutex sync.Mutex
+var appendMutex sync.Mutex
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -76,10 +77,12 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 		probes = append(probes, *newProbe)
 	}
 
-	initialDelayTime = time.Now().Add(time.Duration(egressConfig.InitialDelaySeconds) * time.Second)
+	now := time.Now()
+	initialDelayTime = now.Add(time.Duration(egressConfig.InitialDelayMilliseconds) * time.Millisecond)
+	logger.Debug("delay set", "now", now)
 	logger.Debug("delay set", "initialDelayTime", initialDelayTime)
 
-	ticker.Reset(time.Duration(egressConfig.PeriodSeconds) * time.Second)
+	ticker.Reset(time.Duration(egressConfig.PeriodMilliseconds) * time.Millisecond)
 	logger.Info("config update processing complete")
 }
 

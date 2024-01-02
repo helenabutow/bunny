@@ -38,9 +38,9 @@ egress:
         host: "localhost"
         port: 2624
         path: "healthz"
-  initialDelaySeconds: 0
-  periodSeconds: 3
-  timeoutSeconds: 2
+  initialDelayMilliseconds: 0
+  periodMilliseconds: 3000
+  timeoutMilliseconds: 2000
 ingress:
   httpServer:
     port: 1312
@@ -48,11 +48,10 @@ ingress:
     # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
     healthPath: "healthz"
     metricsPath: "metrics"
-    # TODO-LOW: append "Seconds" to the name below (it's helpful for understanding the units being dealt with)
-    readTimeout: 5
-    readHeaderTimeout: 5
-    writeTimeout: 10
-    idleTimeout: 2
+    readTimeoutMilliseconds: 5000
+    readHeaderTimeoutMilliseconds: 5000
+    writeTimeoutMilliseconds: 10000
+    idleTimeoutMilliseconds: 2000
     maxHeaderBytes: 10000
   # TODO-LOW: rename this to "metrics" (to match up with what we use in egress)
   prometheus:

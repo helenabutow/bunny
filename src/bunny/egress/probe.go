@@ -2,12 +2,14 @@ package egress
 
 import (
 	"bunny/config"
+	"bunny/telemetry"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -23,11 +25,13 @@ type Probe struct {
 type AttemptsMetric struct {
 	Counter         *metric.Int64Counter
 	ExtraAttributes metric.MeasurementOption
+	Labels          labels.Labels
 }
 
 type ResponseTimeMetric struct {
 	Gauge           *metric.Int64ObservableGauge
 	ExtraAttributes metric.MeasurementOption
+	Labels          labels.Labels
 	Name            string
 }
 
@@ -64,6 +68,7 @@ func newAttemptsMetric(egressMetricsConfig *config.EgressMetricsConfig) *Attempt
 	return &AttemptsMetric{
 		Counter:         &newProbeAttemptsCounter,
 		ExtraAttributes: newAttributes(egressMetricsConfig),
+		Labels:          newLabels(egressMetricsConfig),
 	}
 }
 
@@ -97,6 +102,7 @@ func newResponseTimeMetric(egressMetricsConfig *config.EgressMetricsConfig) *Res
 	return &ResponseTimeMetric{
 		Gauge:           &newProbeResponseTimeGauge,
 		ExtraAttributes: extraAttributes,
+		Labels:          newLabels(egressMetricsConfig),
 		Name:            metricName,
 	}
 }
@@ -107,6 +113,14 @@ func newAttributes(egressMetricsConfig *config.EgressMetricsConfig) metric.Measu
 		attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
 	}
 	return metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
+}
+
+func newLabels(egressMetricsConfig *config.EgressMetricsConfig) labels.Labels {
+	var m map[string]string = map[string]string{}
+	for _, egressMetricsExtraLabel := range egressMetricsConfig.EgressMetricsExtraLabels {
+		m[egressMetricsExtraLabel.Name] = egressMetricsExtraLabel.Value
+	}
+	return labels.FromMap(m)
 }
 
 func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetAction {
@@ -132,7 +146,7 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetA
 	// (see the diagram in the "Client Timeouts" section)
 	newHTTPProbeClient := &http.Client{
 		// TODO-MEDIUM: this reference to egressConfig seems gross and possibly buggy
-		Timeout: time.Duration(egressConfig.TimeoutSeconds) * time.Second,
+		Timeout: time.Duration(egressConfig.TimeoutMilliseconds) * time.Millisecond,
 	}
 
 	return &HTTPGetAction{
@@ -145,6 +159,7 @@ func (action HTTPGetAction) act(attemptsMetric *AttemptsMetric, responseTimeMetr
 	if attemptsMetric != nil {
 		counter := attemptsMetric.Counter
 		(*counter).Add(context.Background(), 1, attemptsMetric.ExtraAttributes)
+		appendToPromDB(attemptsMetric.Labels, 1, 0)
 	}
 
 	logger.Debug("performing http probe")
@@ -163,6 +178,22 @@ func (action HTTPGetAction) act(attemptsMetric *AttemptsMetric, responseTimeMetr
 			probeResponseTimesMutex.Lock()
 			defer probeResponseTimesMutex.Unlock()
 			probeResponseTimes[responseTimeMetric.Name] = &newProbeResponseTime
+
+			// unlike with OpenTelemetry, we can append the value to the Prometheus TSDB immediately
+			appendToPromDB(responseTimeMetric.Labels, newProbeResponseTime.Milliseconds(), 0)
 		}
 	}()
+}
+
+func appendToPromDB(l labels.Labels, t int64, v float64) error {
+	appendMutex.Lock()
+	defer appendMutex.Unlock()
+	appender := telemetry.PromDB.Appender(context.Background())
+	var err error
+	// TODO-LOW: if we need to improve performance of appends, consider using the SeriesRefs
+	_, err = appender.Append(0, l, t, v)
+	if err != nil {
+		return err
+	}
+	return appender.Commit()
 }

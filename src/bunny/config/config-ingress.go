@@ -6,14 +6,14 @@ type IngressConfig struct {
 }
 
 type HTTPServerConfig struct {
-	Port              int    `yaml:"port"`
-	HealthPath        string `yaml:"healthPath"`
-	MetricsPath       string `yaml:"metricsPath"`
-	ReadTimeout       int    `yaml:"readTimeout"`
-	ReadHeaderTimeout int    `yaml:"readHeaderTimeout"`
-	WriteTimeout      int    `yaml:"writeTimeout"`
-	IdleTimeout       int    `yaml:"idleTimeout"`
-	MaxHeaderBytes    int    `yaml:"maxHeaderBytes"`
+	Port                          int    `yaml:"port"`
+	HealthPath                    string `yaml:"healthPath"`
+	MetricsPath                   string `yaml:"metricsPath"`
+	ReadTimeoutMilliseconds       int    `yaml:"readTimeoutMilliseconds"`
+	ReadHeaderTimeoutMilliseconds int    `yaml:"readHeaderTimeoutMilliseconds"`
+	WriteTimeoutMilliseconds      int    `yaml:"writeTimeoutMilliseconds"`
+	IdleTimeoutMilliseconds       int    `yaml:"idleTimeoutMilliseconds"`
+	MaxHeaderBytes                int    `yaml:"maxHeaderBytes"`
 }
 
 type IngressPrometheusConfig struct {

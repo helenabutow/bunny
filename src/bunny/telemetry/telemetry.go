@@ -21,7 +21,7 @@ var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var exporter *prometheus.Exporter = nil
 var provider *metric.MeterProvider = nil
-var db *tsdb.DB = nil
+var PromDB *tsdb.DB = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -47,7 +47,10 @@ func Init(sharedLogger *slog.Logger) {
 
 	// TODO-MEDIUM: think about looking at not using the default options for tsdb
 	// this help ensure that we don't use disk too much
-	tsdb.Open(tsdbDirectoryPath, kitLogger, registry, tsdb.DefaultOptions(), tsdb.NewDBStats())
+	PromDB, err = tsdb.Open(tsdbDirectoryPath, kitLogger, registry, tsdb.DefaultOptions(), tsdb.NewDBStats())
+	if err != nil {
+		logger.Error("error while creating Prometheus database", "err", err)
+	}
 
 	// setup OpenTelemetry
 	// the HTTP endpoint is in the ingress package

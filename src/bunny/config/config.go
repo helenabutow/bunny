@@ -147,14 +147,14 @@ func generateDefaultConfig() *BunnyConfig {
 	return &BunnyConfig{
 		IngressConfig: IngressConfig{
 			HTTPServerConfig: HTTPServerConfig{
-				Port:              1312,
-				HealthPath:        "healthz",
-				MetricsPath:       "metrics",
-				ReadTimeout:       5,
-				ReadHeaderTimeout: 5,
-				WriteTimeout:      10,
-				IdleTimeout:       2,
-				MaxHeaderBytes:    10000,
+				Port:                          1312,
+				HealthPath:                    "healthz",
+				MetricsPath:                   "metrics",
+				ReadTimeoutMilliseconds:       5000,
+				ReadHeaderTimeoutMilliseconds: 5000,
+				WriteTimeoutMilliseconds:      10000,
+				IdleTimeoutMilliseconds:       2000,
+				MaxHeaderBytes:                10000,
 			},
 		},
 	}
