@@ -2,11 +2,15 @@ package telemetry
 
 import (
 	"bunny/config"
+	"bunny/logging"
 	"context"
 	"log/slog"
 	"os"
 	"sync"
 
+	kitlog "github.com/go-kit/log"
+	client_golang_prometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/prometheus/tsdb"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -17,14 +21,36 @@ var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var exporter *prometheus.Exporter = nil
 var provider *metric.MeterProvider = nil
+var db *tsdb.DB = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
 	logger.Info("Telemetry initializing")
+	var err error
 
 	// setup Prometheus
+	// TODO-LOW: doc this env var and how memory backed emptyDirs or other fast storage should be used
+	tsdbDirectoryPath := os.Getenv("TSDB_PATH")
+	if tsdbDirectoryPath == "" {
+		tsdbDirectoryPath, err = os.MkdirTemp("/tmp", "bunny-tsdb-")
+		if err != nil {
+			logger.Error("couldn't create a temp dir for the tsdb", "err", err)
+			panic(err)
+		}
+	}
+	registry := client_golang_prometheus.NewRegistry()
+
+	// Prometheus uses a logging library from outside the standard library
+	// so we have to adapt it to work nicely with slog
+	kitLogger := logging.NewSlogAdapterLogger()
+	kitLogger = kitlog.With(kitLogger, "caller", kitlog.DefaultCaller)
+
+	// TODO-MEDIUM: think about looking at not using the default options for tsdb
+	// this help ensure that we don't use disk too much
+	tsdb.Open(tsdbDirectoryPath, kitLogger, registry, tsdb.DefaultOptions(), tsdb.NewDBStats())
+
+	// setup OpenTelemetry
 	// the HTTP endpoint is in the ingress package
-	var err error
 	// seems like an easy bit of memory and bandwidth to save
 	exporter, err = prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 	if err != nil {

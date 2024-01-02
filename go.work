@@ -1,4 +1,7 @@
 go 1.21.5
 
 use ./src/bunny
-use ./src/bee
+
+use (
+	./src/bee
+)

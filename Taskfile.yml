@@ -37,6 +37,7 @@ tasks:
     env:
       BEE_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bee.yaml"
       LOG_HANDLER: text
+      # LOG_HANDLER: json
       MAIN_LOG_LEVEL: debug
       TZ: UTC
     cmds:
@@ -50,6 +51,7 @@ tasks:
     env:
       BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
       LOG_HANDLER: text
+      # LOG_HANDLER: json
       MAIN_LOG_LEVEL: debug
       CONFIG_LOG_LEVEL: debug
       EGRESS_LOG_LEVEL: debug
