@@ -149,7 +149,8 @@ func generateDefaultConfig() *BunnyConfig {
 			HTTPServerConfig: HTTPServerConfig{
 				Port:                          1312,
 				HealthPath:                    "healthz",
-				MetricsPath:                   "metrics",
+				OpenTelemetryMetricsPath:      "otel-metrics",
+				PrometheusMetricsPath:         "prom-metrics",
 				ReadTimeoutMilliseconds:       5000,
 				ReadHeaderTimeoutMilliseconds: 5000,
 				WriteTimeoutMilliseconds:      10000,

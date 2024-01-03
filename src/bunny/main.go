@@ -17,7 +17,6 @@ func main() {
 	var logger *slog.Logger = logging.ConfigureLogger("main")
 	logger.Info("begin")
 
-	// with the defaults below, this seems to keep go_memstats_alloc_bytes at roughly 2-4 megs when idle
 	goMemLimitEnvVar := os.Getenv("GOMEMLIMIT")
 	goGCEnvVar := os.Getenv("GOGC")
 	if goMemLimitEnvVar == "" {

@@ -8,7 +8,7 @@ egress:
           name: "egress_probe_alpha_attempts"
           enabled: true
           extraLabels:
-            - name: "egress-probe-alpha-test-label-name"
+            - name: "egress_probe_alpha_test_label_name"
               value: "egress-probe-alpha-test-label-value"
         responseTime:
           name: "egress_probe_alpha_response_time"
@@ -29,7 +29,7 @@ egress:
           name: "egress_probe_beta_attempts"
           enabled: false
           extraLabels:
-            - name: "egress-probe-beta-test-label-name"
+            - name: "egress_probe_beta_test_label_name"
               value: "egress-probe-beta-test-label-value"
         responseTime:
           name: "egress_probe_beta_response_time"
@@ -47,7 +47,8 @@ ingress:
     # TODO-MEDIUM: it would be helpful to have separate paths for each of the liveness, readiness, and startup probes in case we go with the PromQL idea
     # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
     healthPath: "healthz"
-    metricsPath: "metrics"
+    openTelemetryMetricsPath: "otel-metrics"
+    prometheusMetricsPath: "prom-metrics"
     readTimeoutMilliseconds: 5000
     readHeaderTimeoutMilliseconds: 5000
     writeTimeoutMilliseconds: 10000

@@ -21,7 +21,6 @@ var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
 var probeResponseTimes map[string]*time.Duration = make(map[string]*time.Duration)
 var probeResponseTimesMutex sync.Mutex
-var appendMutex sync.Mutex
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger

@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"bunny/config"
+	"bunny/telemetry"
 	"context"
 	"fmt"
 	"log/slog"
@@ -102,7 +103,13 @@ func startHTTPServer() {
 	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
 	mux.HandleFunc(ensureLeadingSlash(ingressConfig.HTTPServerConfig.HealthPath), healthEndpoint)
-	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.MetricsPath), promhttp.Handler())
+	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.OpenTelemetryMetricsPath), promhttp.Handler())
+
+	// TODO-LOW: we're using most of the default options for the handler here. We might need to tweak that.
+	handlerOpts := promhttp.HandlerOpts{Registry: telemetry.PromRegistry}
+
+	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.PrometheusMetricsPath),
+		promhttp.HandlerFor(telemetry.PromRegistry, handlerOpts))
 
 	httpServer = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", ingressConfig.HTTPServerConfig.Port),

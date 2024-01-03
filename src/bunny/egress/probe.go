@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/prometheus/model/labels"
+	client_golang_prometheus "github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -23,16 +23,16 @@ type Probe struct {
 }
 
 type AttemptsMetric struct {
-	Counter         *metric.Int64Counter
-	ExtraAttributes metric.MeasurementOption
-	Labels          labels.Labels
+	OtelCounter         *metric.Int64Counter
+	OtelExtraAttributes metric.MeasurementOption
+	PromCounter         client_golang_prometheus.Counter
 }
 
 type ResponseTimeMetric struct {
-	Gauge           *metric.Int64ObservableGauge
-	ExtraAttributes metric.MeasurementOption
-	Labels          labels.Labels
-	Name            string
+	OtelGauge           *metric.Int64ObservableGauge
+	OtelExtraAttributes metric.MeasurementOption
+	OtelMetricName      string
+	PromGauge           client_golang_prometheus.Gauge
 }
 
 type HTTPGetAction struct {
@@ -59,16 +59,24 @@ func newAttemptsMetric(egressMetricsConfig *config.EgressMetricsConfig) *Attempt
 	}
 
 	var metricName string = egressMetricsConfig.Name
-	newProbeAttemptsCounter, err := (*meter).Int64Counter(metricName)
+	newProbeAttemptsCounter, err := (*meter).Int64Counter("otel_" + metricName)
 	if err != nil {
 		logger.Error("could not create newProbeAttemptsCounter", "err", err)
 		return nil
 	}
 
+	var opts client_golang_prometheus.CounterOpts = client_golang_prometheus.CounterOpts{
+		Name:        "prom_" + metricName,
+		ConstLabels: newLabels(egressMetricsConfig),
+	}
+	var newPromCounter = client_golang_prometheus.NewCounter(opts)
+	telemetry.PromRegistry.Unregister(newPromCounter)
+	telemetry.PromRegistry.MustRegister(newPromCounter)
+
 	return &AttemptsMetric{
-		Counter:         &newProbeAttemptsCounter,
-		ExtraAttributes: newAttributes(egressMetricsConfig),
-		Labels:          newLabels(egressMetricsConfig),
+		OtelCounter:         &newProbeAttemptsCounter,
+		OtelExtraAttributes: newAttributes(egressMetricsConfig),
+		PromCounter:         newPromCounter,
 	}
 }
 
@@ -80,7 +88,7 @@ func newResponseTimeMetric(egressMetricsConfig *config.EgressMetricsConfig) *Res
 	var metricName string = egressMetricsConfig.Name
 	var unit = metric.WithUnit("ms")
 	extraAttributes := newAttributes(egressMetricsConfig)
-	newProbeResponseTimeGauge, err := (*meter).Int64ObservableGauge(metricName, unit, metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+	newProbeResponseTimeGauge, err := (*meter).Int64ObservableGauge("otel_"+metricName, unit, metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 		if metricName == "" {
 			err := errors.New("unset metric name")
 			logger.Error("unknown metric name within callback", "err", err)
@@ -99,11 +107,19 @@ func newResponseTimeMetric(egressMetricsConfig *config.EgressMetricsConfig) *Res
 		logger.Error("could not create newProbeResponseTimeGauge", "err", err)
 	}
 
+	var opts client_golang_prometheus.GaugeOpts = client_golang_prometheus.GaugeOpts{
+		Name:        "prom_" + metricName,
+		ConstLabels: newLabels(egressMetricsConfig),
+	}
+	var newPromGauge = client_golang_prometheus.NewGauge(opts)
+	telemetry.PromRegistry.Unregister(newPromGauge)
+	telemetry.PromRegistry.MustRegister(newPromGauge)
+
 	return &ResponseTimeMetric{
-		Gauge:           &newProbeResponseTimeGauge,
-		ExtraAttributes: extraAttributes,
-		Labels:          newLabels(egressMetricsConfig),
-		Name:            metricName,
+		OtelGauge:           &newProbeResponseTimeGauge,
+		OtelExtraAttributes: extraAttributes,
+		PromGauge:           newPromGauge,
+		OtelMetricName:      metricName,
 	}
 }
 
@@ -115,12 +131,13 @@ func newAttributes(egressMetricsConfig *config.EgressMetricsConfig) metric.Measu
 	return metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
 }
 
-func newLabels(egressMetricsConfig *config.EgressMetricsConfig) labels.Labels {
+func newLabels(egressMetricsConfig *config.EgressMetricsConfig) client_golang_prometheus.Labels {
 	var m map[string]string = map[string]string{}
 	for _, egressMetricsExtraLabel := range egressMetricsConfig.EgressMetricsExtraLabels {
 		m[egressMetricsExtraLabel.Name] = egressMetricsExtraLabel.Value
 	}
-	return labels.FromMap(m)
+	logger.Debug("new labels", "m", m)
+	return m
 }
 
 func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetAction {
@@ -157,9 +174,9 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetA
 
 func (action HTTPGetAction) act(attemptsMetric *AttemptsMetric, responseTimeMetric *ResponseTimeMetric) {
 	if attemptsMetric != nil {
-		counter := attemptsMetric.Counter
-		(*counter).Add(context.Background(), 1, attemptsMetric.ExtraAttributes)
-		appendToPromDB(attemptsMetric.Labels, 1, 0)
+		counter := attemptsMetric.OtelCounter
+		(*counter).Add(context.Background(), 1, attemptsMetric.OtelExtraAttributes)
+		attemptsMetric.PromCounter.Inc()
 	}
 
 	logger.Debug("performing http probe")
@@ -177,23 +194,10 @@ func (action HTTPGetAction) act(attemptsMetric *AttemptsMetric, responseTimeMetr
 		if responseTimeMetric != nil {
 			probeResponseTimesMutex.Lock()
 			defer probeResponseTimesMutex.Unlock()
-			probeResponseTimes[responseTimeMetric.Name] = &newProbeResponseTime
+			probeResponseTimes[responseTimeMetric.OtelMetricName] = &newProbeResponseTime
 
 			// unlike with OpenTelemetry, we can append the value to the Prometheus TSDB immediately
-			appendToPromDB(responseTimeMetric.Labels, newProbeResponseTime.Milliseconds(), 0)
+			responseTimeMetric.PromGauge.Set(float64(newProbeResponseTime.Milliseconds()))
 		}
 	}()
-}
-
-func appendToPromDB(l labels.Labels, t int64, v float64) error {
-	appendMutex.Lock()
-	defer appendMutex.Unlock()
-	appender := telemetry.PromDB.Appender(context.Background())
-	var err error
-	// TODO-LOW: if we need to improve performance of appends, consider using the SeriesRefs
-	_, err = appender.Append(0, l, t, v)
-	if err != nil {
-		return err
-	}
-	return appender.Commit()
 }

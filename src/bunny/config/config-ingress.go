@@ -8,7 +8,8 @@ type IngressConfig struct {
 type HTTPServerConfig struct {
 	Port                          int    `yaml:"port"`
 	HealthPath                    string `yaml:"healthPath"`
-	MetricsPath                   string `yaml:"metricsPath"`
+	OpenTelemetryMetricsPath      string `yaml:"openTelemetryMetricsPath"`
+	PrometheusMetricsPath         string `yaml:"prometheusMetricsPath"`
 	ReadTimeoutMilliseconds       int    `yaml:"readTimeoutMilliseconds"`
 	ReadHeaderTimeoutMilliseconds int    `yaml:"readHeaderTimeoutMilliseconds"`
 	WriteTimeoutMilliseconds      int    `yaml:"writeTimeoutMilliseconds"`

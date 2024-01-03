@@ -10,6 +10,7 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	client_golang_prometheus "github.com/prometheus/client_golang/prometheus"
+	client_golang_prometheus_collectors "github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/prometheus/tsdb"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
@@ -19,9 +20,14 @@ import (
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+
+// OpenTelemetry things
 var exporter *prometheus.Exporter = nil
 var provider *metric.MeterProvider = nil
+
+// Prometheus things
 var PromDB *tsdb.DB = nil
+var PromRegistry *client_golang_prometheus.Registry = nil
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -38,24 +44,27 @@ func Init(sharedLogger *slog.Logger) {
 			panic(err)
 		}
 	}
-	registry := client_golang_prometheus.NewRegistry()
-
+	PromRegistry = client_golang_prometheus.NewRegistry()
+	// add some additional metrics that are useful
+	PromRegistry.MustRegister(
+		client_golang_prometheus_collectors.NewGoCollector(),
+	)
 	// Prometheus uses a logging library from outside the standard library
 	// so we have to adapt it to work nicely with slog
 	kitLogger := logging.NewSlogAdapterLogger()
 	kitLogger = kitlog.With(kitLogger, "caller", kitlog.DefaultCaller)
-
 	// TODO-MEDIUM: think about looking at not using the default options for tsdb
 	// this help ensure that we don't use disk too much
-	PromDB, err = tsdb.Open(tsdbDirectoryPath, kitLogger, registry, tsdb.DefaultOptions(), tsdb.NewDBStats())
+	PromDB, err = tsdb.Open(tsdbDirectoryPath, kitLogger, PromRegistry, tsdb.DefaultOptions(), tsdb.NewDBStats())
 	if err != nil {
 		logger.Error("error while creating Prometheus database", "err", err)
 	}
 
 	// setup OpenTelemetry
 	// the HTTP endpoint is in the ingress package
-	// seems like an easy bit of memory and bandwidth to save
+	// removing the scope and target info seems like an easy bit of memory and bandwidth to save
 	exporter, err = prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+
 	if err != nil {
 		logger.Error("error while creating Prometheus exporter", "err", err)
 	}
