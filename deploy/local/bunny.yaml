@@ -15,6 +15,7 @@ egress:
           enabled: true
           extraLabels: []
       httpGet:
+        # TODO-LOW: we should add support for TLS with self-signed certs (which we check against a copy in a Secret)
         host: "localhost"
         httpHeaders:
           - name: "x-bunny-test-header-name"
@@ -44,16 +45,27 @@ egress:
 ingress:
   httpServer:
     port: 1312
-    # TODO-MEDIUM: it would be helpful to have separate paths for each of the liveness, readiness, and startup probes in case we go with the PromQL idea
-    # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
-    healthPath: "healthz"
-    openTelemetryMetricsPath: "otel-metrics"
-    prometheusMetricsPath: "prom-metrics"
     readTimeoutMilliseconds: 5000
     readHeaderTimeoutMilliseconds: 5000
     writeTimeoutMilliseconds: 10000
     idleTimeoutMilliseconds: 2000
     maxHeaderBytes: 10000
+    openTelemetryMetricsPath: "otel-metrics"
+    prometheusMetricsPath: "prom-metrics"
+    # TODO-LOW: update README.md (in both the "Pod Spec" and "Config File" sections) on how this block works
+    health:
+      - path: "healthz-liveness"
+        instantQuery:
+          queryTimeout: "5s"
+          queryRelativeInstantTime: "-5s"
+          query: "1.0 >= bool 0.2"
+      - path: "healthz-readiness"
+        rangeQuery:
+          queryTimeout: "5s"
+          queryRelativeStartTime: "-5s"
+          queryRelativeEndTime: "0s"
+          queryInterval: "1s"
+          query: "1.0 >= bool 0.2"
   # TODO-LOW: rename this to "metrics" (to match up with what we use in egress)
   prometheus:
     extraLabels:

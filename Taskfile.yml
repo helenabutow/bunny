@@ -52,12 +52,12 @@ tasks:
       BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
       LOG_HANDLER: text
       # LOG_HANDLER: json
-      MAIN_LOG_LEVEL: debug
-      CONFIG_LOG_LEVEL: debug
-      EGRESS_LOG_LEVEL: debug
+      MAIN_LOG_LEVEL: info
+      CONFIG_LOG_LEVEL: info
+      EGRESS_LOG_LEVEL: info
       INGRESS_LOG_LEVEL: debug
       TELEMETRY_LOG_LEVEL: debug
-      SIGNALS_LOG_LEVEL: debug
+      SIGNALS_LOG_LEVEL: info
       TZ: UTC
     cmds:
       - cmd: ./bunny-macos
