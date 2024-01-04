@@ -6,15 +6,35 @@ type IngressConfig struct {
 }
 
 type HTTPServerConfig struct {
-	Port                          int    `yaml:"port"`
-	HealthPath                    string `yaml:"healthPath"`
-	OpenTelemetryMetricsPath      string `yaml:"openTelemetryMetricsPath"`
-	PrometheusMetricsPath         string `yaml:"prometheusMetricsPath"`
-	ReadTimeoutMilliseconds       int    `yaml:"readTimeoutMilliseconds"`
-	ReadHeaderTimeoutMilliseconds int    `yaml:"readHeaderTimeoutMilliseconds"`
-	WriteTimeoutMilliseconds      int    `yaml:"writeTimeoutMilliseconds"`
-	IdleTimeoutMilliseconds       int    `yaml:"idleTimeoutMilliseconds"`
-	MaxHeaderBytes                int    `yaml:"maxHeaderBytes"`
+	Port                          int            `yaml:"port"`
+	ReadTimeoutMilliseconds       int            `yaml:"readTimeoutMilliseconds"`
+	ReadHeaderTimeoutMilliseconds int            `yaml:"readHeaderTimeoutMilliseconds"`
+	WriteTimeoutMilliseconds      int            `yaml:"writeTimeoutMilliseconds"`
+	IdleTimeoutMilliseconds       int            `yaml:"idleTimeoutMilliseconds"`
+	MaxHeaderBytes                int            `yaml:"maxHeaderBytes"`
+	OpenTelemetryMetricsPath      string         `yaml:"openTelemetryMetricsPath"`
+	PrometheusMetricsPath         string         `yaml:"prometheusMetricsPath"`
+	HealthConfig                  []HealthConfig `yaml:"health"`
+}
+
+type HealthConfig struct {
+	Path               string              `yaml:"path"`
+	InstantQueryConfig *InstantQueryConfig `yaml:"instantQuery"`
+	RangeQueryConfig   *RangeQueryConfig   `yaml:"rangeQuery"`
+}
+
+type InstantQueryConfig struct {
+	QueryTimeout             string `yaml:"queryTimeout"`
+	QueryRelativeInstantTime string `yaml:"queryRelativeInstantTime"`
+	Query                    string `yaml:"query"`
+}
+
+type RangeQueryConfig struct {
+	QueryTimeout           string `yaml:"queryTimeout"`
+	QueryRelativeStartTime string `yaml:"queryRelativeStartTime"`
+	QueryRelativeEndTime   string `yaml:"queryRelativeEndTime"`
+	QueryInterval          string `yaml:"queryInterval"`
+	Query                  string `yaml:"query"`
 }
 
 type IngressPrometheusConfig struct {

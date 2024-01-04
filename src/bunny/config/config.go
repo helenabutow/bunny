@@ -143,19 +143,19 @@ func AddChannelListener(configUpdateChannel *(chan BunnyConfig)) {
 	configUpdateChannels = append(configUpdateChannels, *configUpdateChannel)
 }
 
+// TODO-MEDIUM: we need a better default config
 func generateDefaultConfig() *BunnyConfig {
 	return &BunnyConfig{
 		IngressConfig: IngressConfig{
 			HTTPServerConfig: HTTPServerConfig{
 				Port:                          1312,
-				HealthPath:                    "healthz",
-				OpenTelemetryMetricsPath:      "otel-metrics",
-				PrometheusMetricsPath:         "prom-metrics",
 				ReadTimeoutMilliseconds:       5000,
 				ReadHeaderTimeoutMilliseconds: 5000,
 				WriteTimeoutMilliseconds:      10000,
 				IdleTimeoutMilliseconds:       2000,
 				MaxHeaderBytes:                10000,
+				OpenTelemetryMetricsPath:      "otel-metrics",
+				PrometheusMetricsPath:         "prom-metrics",
 			},
 		},
 	}

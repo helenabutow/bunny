@@ -52,7 +52,7 @@ func GoIngress(wg *sync.WaitGroup) {
 			newMeter := otel.GetMeterProvider().Meter("bunny/ingress")
 			meter = &newMeter
 
-			// extra key/value pairs to include with each Prometheus metric
+			// extra key/value pairs to include with each OpenTelemetry metric
 			attributesCopy := make([]attribute.KeyValue, len(ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels))
 			for i, promLabelConfig := range ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels {
 				attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
@@ -60,7 +60,7 @@ func GoIngress(wg *sync.WaitGroup) {
 			newExtraAttributes := metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
 			extraAttributes = &newExtraAttributes
 
-			// Prometheus metrics
+			// OpenTelemetry metrics
 			var metricName string = "ingress_health_attempts"
 			if slices.Contains(ingressConfig.IngressPrometheusConfig.MetricsEnabled, metricName) {
 				newHealthAttemptsCounter, err := (*meter).Int64Counter(metricName)
@@ -102,12 +102,20 @@ func shutdownHealthEndpoint() {
 func startHTTPServer() {
 	logger.Info("starting HTTP server")
 	mux := http.NewServeMux()
-	mux.HandleFunc(ensureLeadingSlash(ingressConfig.HTTPServerConfig.HealthPath), healthEndpoint)
+
+	// Health endpoints handlers
+	for _, healthConfig := range ingressConfig.HTTPServerConfig.HealthConfig {
+		// rather than having to dynamically create a func per endpoint, we handle each endpoint
+		// through the same func and figure out which query to make based on the request path
+		mux.HandleFunc(ensureLeadingSlash(healthConfig.Path), healthEndpoint)
+	}
+
+	// OpenTelemetry metrics handler
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.OpenTelemetryMetricsPath), promhttp.Handler())
 
+	// Prometheus metrics handler
 	// TODO-LOW: we're using most of the default options for the handler here. We might need to tweak that.
 	handlerOpts := promhttp.HandlerOpts{Registry: telemetry.PromRegistry}
-
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.PrometheusMetricsPath),
 		promhttp.HandlerFor(telemetry.PromRegistry, handlerOpts))
 
@@ -137,24 +145,78 @@ func ensureLeadingSlash(path string) string {
 	return path
 }
 
-// TODO-MEDIUM: consider allowing PromQL to be used to determine endpoint result
-// PromQL intro and reference: https://prometheus.io/docs/prometheus/latest/querying/basics/
-// We may be able to implement this against the Prometheus metrics endpoint that OpenTelemetry provides
-// If that doesn't work, we could also consider running a Prometheus server as a sidecar
-// (though tuning its storage and memory usage could be a pain: https://prometheus.io/docs/prometheus/1.8/storage/)
-// And if that doesn't work, we could also support using PromQL against an external server
-// (though the round trip time for getting the newest metrics might make that less useful)
-// this might be a starting point: https://github.com/prometheus/client_golang/blob/main/api/prometheus/v1/example_test.go#L54
-// (we should check if OpenTelemetry has a way to do this)
-// Mimir has an endpoint that we can query against: http://localhost:30001/prometheus/api/v1/query
 func healthEndpoint(w http.ResponseWriter, req *http.Request) {
 	logger.Debug("healthy")
 
+	// TODO-HIGH: we need separate health attempt counters per health endpoint
 	healthAttempts++
 	logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
 	(*healthAttemptsCounter).Add(context.Background(), 1, *extraAttributes)
 
-	fmt.Fprintln(w, "healthy")
+	// TODO-LOW: we could optimize this by moving most of this code into the config update block of GoIngress
+	// the exception being time.Time values (as those are relative to time.Now()) but time.Duration would be fine
+	// It's also gross code that I'm writing while tired of dealing with YAML. I'm sorry.
+	for _, healthConfig := range ingressConfig.HTTPServerConfig.HealthConfig {
+		var instantQueryResult bool = true
+		var rangeQueryResult bool = true
+		if healthConfig.Path == req.URL.Path {
+			if healthConfig.InstantQueryConfig != nil {
+				duration, err := time.ParseDuration(healthConfig.InstantQueryConfig.QueryTimeout)
+				if err != nil {
+					logger.Error("error while parsing duration for queryTimeout",
+						"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
+					return
+				}
+				query := healthConfig.InstantQueryConfig.Query
+				instantTimeDuration, err := time.ParseDuration(healthConfig.InstantQueryConfig.QueryRelativeInstantTime)
+				if err != nil {
+					logger.Error("error while parsing duration for queryRelativeInstantTime",
+						"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
+					return
+				}
+				instantTime := time.Now().Add(instantTimeDuration)
+				instantQueryResult, _ = telemetry.InstantQuery(duration, query, instantTime)
+			}
+			if healthConfig.InstantQueryConfig != nil {
+				duration, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryTimeout)
+				if err != nil {
+					logger.Error("error while parsing duration for queryTimeout",
+						"healthConfig.RangeQueryConfig", healthConfig.RangeQueryConfig)
+					return
+				}
+				query := healthConfig.RangeQueryConfig.Query
+				startTimeDuration, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryRelativeStartTime)
+				if err != nil {
+					logger.Error("error while parsing duration for queryRelativeStartTime",
+						"healthConfig.RangeQueryConfig", healthConfig.RangeQueryConfig)
+					return
+				}
+				startTime := time.Now().Add(startTimeDuration)
+				endTimeDuration, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryRelativeEndTime)
+				if err != nil {
+					logger.Error("error while parsing duration for queryRelativeEndTime",
+						"healthConfig.RangeQueryConfig", healthConfig.RangeQueryConfig)
+					return
+				}
+				endTime := time.Now().Add(endTimeDuration)
+				interval, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryRelativeEndTime)
+				if err != nil {
+					logger.Error("error while parsing duration for queryRelativeEndTime",
+						"healthConfig.RangeQueryConfig", healthConfig.RangeQueryConfig)
+					return
+				}
+				rangeQueryResult, _ = telemetry.RangeQuery(duration, query, startTime, endTime, interval)
+			}
+			if instantQueryResult && rangeQueryResult {
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, "healthy")
+			} else {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				fmt.Fprintln(w, "unhealthy")
+			}
+			return
+		}
+	}
 }
 
 // TODO-LOW: add rate limiting - see https://gobyexample.com/rate-limiting
