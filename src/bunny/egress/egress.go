@@ -90,6 +90,7 @@ func performProbes(tickTime *time.Time) {
 
 	for _, probe := range probes {
 		// TODO-HIGH: add the other probes here
+		// for how Kubernetes tests their GRPC probe: https://pkg.go.dev/k8s.io/kubernetes/test/images/agnhost#readme-grpc-health-checking
 		if probe.HTTPGetAction != nil {
 			probe.HTTPGetAction.act(probe.AttemptsMetric, probe.ResponseTimeMetric)
 		}

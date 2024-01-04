@@ -74,6 +74,7 @@ func Init(sharedLogger *slog.Logger) {
 		// TODO-LOW: we should make MaxSamples configurable
 		// higher values allow for more memory to be used
 		// see: https://manpages.debian.org/unstable/prometheus/prometheus.1.en.html#query.max_samples=50000000
+		// TODO-HIGH: if we set MaxSamples to 0, I think we can emulate long queries. Use this to ensure that when bunny gets the kill signal, that Cancel() is called on each Prometheus Query
 		MaxSamples:         50000000,
 		Timeout:            time.Duration(30) * time.Second,
 		ActiveQueryTracker: activeQueryTracker,
@@ -175,6 +176,7 @@ func RangeQuery(duration time.Duration, queryString string, startTime time.Time,
 		logger.Error("could not create query", queryLogArgs...)
 		return false, err
 	}
+	// TODO-LOW: we should time the queries and generate metrics for them
 	var result *promql.Result = query.Exec(deadline)
 	defer query.Close()
 	var resultLogArgs []any = []any{
@@ -201,6 +203,8 @@ func handleQueryResult(result *promql.Result, logArgs []any) (bool, error) {
 	}
 
 	// TODO-MEDIUM: need to write tests for each of the query types
+	// see: https://gobyexample.com/testing-and-benchmarking
+	// also: https://pkg.go.dev/testing#hdr-Fuzzing
 	switch result.Value.Type() {
 	case parser.ValueTypeScalar:
 		value, err := result.Scalar()
