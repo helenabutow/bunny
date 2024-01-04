@@ -1,8 +1,21 @@
 egress:
+  initialDelayMilliseconds: 0
+  periodMilliseconds: 3000
+  timeoutMilliseconds: 2000
   #  TODO-LOW: docs on how to create liveness, readiness, and startup probe equivalents
   # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
   probes:
     - name: "alpha"
+      httpGet:
+        # TODO-LOW: we should add support for TLS with self-signed certs (which we check against a copy in a Secret)
+        host: "localhost"
+        httpHeaders:
+          - name: "x-bunny-test-header-name"
+            value: "test-value"
+          - name: "x-bunny-test-header-name2"
+            value: "test-value2"
+        port: 2624
+        path: "healthz"
       metrics:
         attempts:
           name: "egress_probe_alpha_attempts"
@@ -14,17 +27,11 @@ egress:
           name: "egress_probe_alpha_response_time"
           enabled: true
           extraLabels: []
+    - name: "beta"
       httpGet:
-        # TODO-LOW: we should add support for TLS with self-signed certs (which we check against a copy in a Secret)
         host: "localhost"
-        httpHeaders:
-          - name: "x-bunny-test-header-name"
-            value: "test-value"
-          - name: "x-bunny-test-header-name2"
-            value: "test-value2"
         port: 2624
         path: "healthz"
-    - name: "beta"
       metrics:
         attempts:
           name: "egress_probe_beta_attempts"
@@ -35,13 +42,6 @@ egress:
         responseTime:
           name: "egress_probe_beta_response_time"
           enabled: true
-      httpGet:
-        host: "localhost"
-        port: 2624
-        path: "healthz"
-  initialDelayMilliseconds: 0
-  periodMilliseconds: 3000
-  timeoutMilliseconds: 2000
 ingress:
   httpServer:
     port: 1312
