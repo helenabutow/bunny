@@ -7,7 +7,9 @@ egress:
   probes:
     - name: "alpha"
       httpGet:
-        # TODO-LOW: we should add support for TLS with self-signed certs (which we check against a copy in a Secret)
+        # TODO-LOW: we should add support for TLS with self-signed certs
+        # we should support checking against files in a directory or against fingerprints
+        # the files can come from volume mounted Secrets
         host: "localhost"
         httpHeaders:
           - name: "x-bunny-test-header-name"
