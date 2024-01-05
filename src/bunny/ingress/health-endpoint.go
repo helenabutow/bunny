@@ -64,15 +64,15 @@ func newHealthEndpoint(healthConfig *config.HealthConfig) (*HealthEndpoint, erro
 }
 
 func newInstantQuery(healthConfig *config.HealthConfig) (Query, error) {
-	timeout, err := time.ParseDuration(healthConfig.InstantQueryConfig.QueryTimeout)
+	timeout, err := time.ParseDuration(healthConfig.InstantQueryConfig.Timeout)
 	if err != nil {
-		logger.Error("error while parsing duration for queryTimeout",
+		logger.Error("error while parsing duration for timeout",
 			"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
 		return nil, err
 	}
-	relativeInstantTime, err := time.ParseDuration(healthConfig.InstantQueryConfig.QueryRelativeInstantTime)
+	relativeInstantTime, err := time.ParseDuration(healthConfig.InstantQueryConfig.RelativeInstantTime)
 	if err != nil {
-		logger.Error("error while parsing duration for queryRelativeInstantTime",
+		logger.Error("error while parsing duration for relativeInstantTime",
 			"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
 		return nil, err
 	}
@@ -84,27 +84,27 @@ func newInstantQuery(healthConfig *config.HealthConfig) (Query, error) {
 }
 
 func newRangeQuery(healthConfig *config.HealthConfig) (Query, error) {
-	timeout, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryTimeout)
+	timeout, err := time.ParseDuration(healthConfig.RangeQueryConfig.Timeout)
 	if err != nil {
-		logger.Error("error while parsing duration for queryTimeout",
+		logger.Error("error while parsing duration for timeout",
 			"healthConfig.RangeQueryConfig", healthConfig.RangeQueryConfig)
 		return nil, err
 	}
-	relativeStartTime, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryRelativeStartTime)
+	relativeStartTime, err := time.ParseDuration(healthConfig.RangeQueryConfig.RelativeStartTime)
 	if err != nil {
-		logger.Error("error while parsing duration for queryRelativeStartTime",
+		logger.Error("error while parsing duration for relativeStartTime",
 			"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
 		return nil, err
 	}
-	relativeEndTime, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryRelativeEndTime)
+	relativeEndTime, err := time.ParseDuration(healthConfig.RangeQueryConfig.RelativeEndTime)
 	if err != nil {
-		logger.Error("error while parsing duration for queryRelativeEndTime",
+		logger.Error("error while parsing duration for relativeEndTime",
 			"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
 		return nil, err
 	}
-	interval, err := time.ParseDuration(healthConfig.RangeQueryConfig.QueryInterval)
+	interval, err := time.ParseDuration(healthConfig.RangeQueryConfig.Interval)
 	if err != nil {
-		logger.Error("error while parsing duration for queryInterval",
+		logger.Error("error while parsing duration for interval",
 			"healthConfig.InstantQueryConfig", healthConfig.InstantQueryConfig)
 		return nil, err
 	}

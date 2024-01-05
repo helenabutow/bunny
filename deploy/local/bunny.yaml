@@ -56,15 +56,15 @@ ingress:
     health:
       - path: "healthz-liveness"
         instantQuery:
-          queryTimeout: "5s"
-          queryRelativeInstantTime: "-5s"
+          timeout: "5s"
+          relativeInstantTime: "-5s"
           query: "1.0 >= bool 0.2"
       - path: "healthz-readiness"
         rangeQuery:
-          queryTimeout: "5s"
-          queryRelativeStartTime: "-5s"
-          queryRelativeEndTime: "0s"
-          queryInterval: "1s"
+          timeout: "5s"
+          relativeStartTime: "-5s"
+          relativeEndTime: "0s"
+          interval: "1s"
           query: "1.0 >= bool 0.2"
   # TODO-HIGH: refactor this so that each health path gets their own metric names and extra labels (just like egress)
   prometheus:

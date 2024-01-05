@@ -23,19 +23,18 @@ type HealthConfig struct {
 	RangeQueryConfig   *RangeQueryConfig   `yaml:"rangeQuery"`
 }
 
-// TODO-MEDIUM: we should remove the "query" prefix on these names
 type InstantQueryConfig struct {
-	QueryTimeout             string `yaml:"queryTimeout"`
-	QueryRelativeInstantTime string `yaml:"queryRelativeInstantTime"`
-	Query                    string `yaml:"query"`
+	Timeout             string `yaml:"timeout"`
+	RelativeInstantTime string `yaml:"relativeInstantTime"`
+	Query               string `yaml:"query"`
 }
 
 type RangeQueryConfig struct {
-	QueryTimeout           string `yaml:"queryTimeout"`
-	QueryRelativeStartTime string `yaml:"queryRelativeStartTime"`
-	QueryRelativeEndTime   string `yaml:"queryRelativeEndTime"`
-	QueryInterval          string `yaml:"queryInterval"`
-	Query                  string `yaml:"query"`
+	Timeout           string `yaml:"timeout"`
+	RelativeStartTime string `yaml:"relativeStartTime"`
+	RelativeEndTime   string `yaml:"relativeEndTime"`
+	Interval          string `yaml:"interval"`
+	Query             string `yaml:"query"`
 }
 
 type IngressPrometheusConfig struct {
