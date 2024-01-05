@@ -18,7 +18,9 @@ import (
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/tsdb"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/prometheus"
+	otel_not_sdk_metric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -290,6 +292,23 @@ func handleQueryResult(result *promql.Result, logArgs []any) (bool, error) {
 		logger.Error(message, logArgs...)
 		return false, errors.New(message)
 	}
+}
+
+func NewAttributes(extraLabels []config.ExtraLabelsConfig) otel_not_sdk_metric.MeasurementOption {
+	attributesCopy := make([]attribute.KeyValue, len(extraLabels))
+	for i, extraLabelConfig := range extraLabels {
+		attributesCopy[i] = attribute.Key(extraLabelConfig.Name).String(extraLabelConfig.Value)
+	}
+	return otel_not_sdk_metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
+}
+
+func NewLabels(extraLabels []config.ExtraLabelsConfig) client_golang_prometheus.Labels {
+	var m map[string]string = map[string]string{}
+	for _, extraLabelConfig := range extraLabels {
+		m[extraLabelConfig.Name] = extraLabelConfig.Value
+	}
+	logger.Debug("new labels", "m", m)
+	return m
 }
 
 // TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog

@@ -1,8 +1,7 @@
 package config
 
 type IngressConfig struct {
-	HTTPServerConfig        HTTPServerConfig        `yaml:"httpServer"`
-	IngressPrometheusConfig IngressPrometheusConfig `yaml:"prometheus"`
+	HTTPServerConfig HTTPServerConfig `yaml:"httpServer"`
 }
 
 type HTTPServerConfig struct {
@@ -14,13 +13,14 @@ type HTTPServerConfig struct {
 	MaxHeaderBytes                int            `yaml:"maxHeaderBytes"`
 	OpenTelemetryMetricsPath      string         `yaml:"openTelemetryMetricsPath"`
 	PrometheusMetricsPath         string         `yaml:"prometheusMetricsPath"`
-	HealthConfig                  []HealthConfig `yaml:"health"`
+	Health                        []HealthConfig `yaml:"health"`
 }
 
 type HealthConfig struct {
-	Path               string              `yaml:"path"`
-	InstantQueryConfig *InstantQueryConfig `yaml:"instantQuery"`
-	RangeQueryConfig   *RangeQueryConfig   `yaml:"rangeQuery"`
+	Path         string                              `yaml:"path"`
+	InstantQuery *InstantQueryConfig                 `yaml:"instantQuery"`
+	RangeQuery   *RangeQueryConfig                   `yaml:"rangeQuery"`
+	Metrics      *IngressHealthEndpointMetricsConfig `yaml:"metrics"`
 }
 
 type InstantQueryConfig struct {
@@ -37,12 +37,7 @@ type RangeQueryConfig struct {
 	Query             string `yaml:"query"`
 }
 
-type IngressPrometheusConfig struct {
-	ExtraIngressPrometheusLabels []ExtraIngressPrometheusLabelsConfig `yaml:"extraLabels"`
-	MetricsEnabled               []string                             `yaml:"metricsEnabled"`
-}
-
-type ExtraIngressPrometheusLabelsConfig struct {
-	Name  string `yaml:"name"`
-	Value string `yaml:"value"`
+type IngressHealthEndpointMetricsConfig struct {
+	Attempts     MetricsConfig `yaml:"attempts"`
+	ResponseTime MetricsConfig `yaml:"responseTime"`
 }

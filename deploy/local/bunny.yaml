@@ -22,7 +22,7 @@ egress:
           enabled: true
           extraLabels:
             - name: "egress_probe_alpha_test_label_name"
-              value: "egress-probe-alpha-test-label-value"
+              value: "egress_probe_alpha_test_label_value"
         responseTime:
           name: "egress_probe_alpha_response_time"
           enabled: true
@@ -38,7 +38,7 @@ egress:
           enabled: false
           extraLabels:
             - name: "egress_probe_beta_test_label_name"
-              value: "egress-probe-beta-test-label-value"
+              value: "egress_probe_beta_test_label_value"
         responseTime:
           name: "egress_probe_beta_response_time"
           enabled: true
@@ -53,12 +53,21 @@ ingress:
     openTelemetryMetricsPath: "otel-metrics"
     prometheusMetricsPath: "prom-metrics"
     # TODO-LOW: update README.md (in both the "Pod Spec" and "Config File" sections) on how this block works
+    # TODO-HIGH: the ingress metrics don't seem to be working
+    # there's inconsistent naming and some don't show up
     health:
       - path: "healthz-liveness"
         instantQuery:
           timeout: "5s"
           relativeInstantTime: "-5s"
           query: "1.0 >= bool 0.2"
+        metrics:
+          attempts:
+            name: "ingress_healthz_liveness_attempts"
+            enabled: false
+            extraLabels:
+              - name: "ingress_healthz_liveness_attempts_label_name"
+                value: "ingress_healthz_liveness_attempts_label_value"
       - path: "healthz-readiness"
         rangeQuery:
           timeout: "5s"
@@ -66,12 +75,10 @@ ingress:
           relativeEndTime: "0s"
           interval: "1s"
           query: "1.0 >= bool 0.2"
-  # TODO-HIGH: refactor this so that each health path gets their own metric names and extra labels (just like egress)
-  prometheus:
-    extraLabels:
-      - name: "bunny-test-ingress-label-name"
-        value: "bunny-test-ingress-label-value"
-    metricsEnabled:
-      - "ingress_health_attempts"
+        metrics:
+          responseTime:
+            name: "ingress_healthz_readiness_response_time"
+            enabled: true
+            extraLabels: []
 signals:
   watchedProcessName: "sleep"

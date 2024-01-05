@@ -19,8 +19,6 @@ var initialDelayTime time.Time = time.Now()
 var egressConfig *config.EgressConfig = nil
 var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
-var probeResponseTimes map[string]*time.Duration = make(map[string]*time.Duration)
-var probeResponseTimesMutex sync.Mutex
 
 func Init(sharedLogger *slog.Logger) {
 	logger = sharedLogger
@@ -71,7 +69,7 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 
 	// process probe configs
 	probes = []Probe{}
-	for _, egressProbeConfig := range egressConfig.EgressProbeConfigs {
+	for _, egressProbeConfig := range egressConfig.Probes {
 		var newProbe *Probe = newProbe(&egressProbeConfig)
 		probes = append(probes, *newProbe)
 	}

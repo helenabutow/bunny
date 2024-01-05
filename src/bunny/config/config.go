@@ -21,8 +21,19 @@ type BunnyConfig struct {
 }
 
 // EgressConfig is in config-egress.go
-
 // IngressConfig is in config-ingress.go
+// config common to both is here
+
+type MetricsConfig struct {
+	Enabled     bool                `yaml:"enabled"`
+	Name        string              `yaml:"name"`
+	ExtraLabels []ExtraLabelsConfig `yaml:"extraLabels"`
+}
+
+type ExtraLabelsConfig struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
 
 type SignalsConfig struct {
 	WatchedProcessName *string `yaml:"watchedProcessName"`

@@ -8,14 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -24,9 +22,6 @@ var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var ingressConfig *config.IngressConfig = nil
 var meter *metric.Meter = nil
-var extraAttributes *metric.MeasurementOption = nil
-var healthAttempts int64 = 0
-var healthAttemptsCounter *metric.Int64Counter = nil
 var httpServer *http.Server = nil
 var healthEndpoints [](*HealthEndpoint) = [](*HealthEndpoint){}
 
@@ -55,34 +50,13 @@ func GoIngress(wg *sync.WaitGroup) {
 
 			// process config for health endpoints
 			healthEndpoints = [](*HealthEndpoint){}
-			for _, healthConfig := range ingressConfig.HTTPServerConfig.HealthConfig {
+			for _, healthConfig := range ingressConfig.HTTPServerConfig.Health {
 				healthEndpoint, err := newHealthEndpoint(&healthConfig)
 				if err != nil {
 					logger.Error("error while processing config for health endpoint", "healthEndpoint", healthEndpoint)
 					continue
 				}
 				healthEndpoints = append(healthEndpoints, healthEndpoint)
-			}
-
-			// extra key/value pairs to include with each OpenTelemetry metric
-			attributesCopy := make([]attribute.KeyValue, len(ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels))
-			for i, promLabelConfig := range ingressConfig.IngressPrometheusConfig.ExtraIngressPrometheusLabels {
-				attributesCopy[i] = attribute.Key(promLabelConfig.Name).String(promLabelConfig.Value)
-			}
-			newExtraAttributes := metric.WithAttributeSet(attribute.NewSet(attributesCopy...))
-			extraAttributes = &newExtraAttributes
-
-			// OpenTelemetry metrics
-			// TODO-MEDIUM: make sure that these go to both Prometheus and OpenTelemetry
-			var metricName string = "ingress_health_attempts"
-			if slices.Contains(ingressConfig.IngressPrometheusConfig.MetricsEnabled, metricName) {
-				newHealthAttemptsCounter, err := (*meter).Int64Counter(metricName)
-				if err != nil {
-					logger.Error("could not create healthAttemptsCounter", "err", err)
-				}
-				healthAttemptsCounter = &newHealthAttemptsCounter
-			} else {
-				healthAttemptsCounter = nil
 			}
 
 			shutdownHTTPServer()
@@ -117,7 +91,7 @@ func startHTTPServer() {
 	mux := http.NewServeMux()
 
 	// Health endpoints handlers
-	for _, healthConfig := range ingressConfig.HTTPServerConfig.HealthConfig {
+	for _, healthConfig := range ingressConfig.HTTPServerConfig.Health {
 		// rather than having to dynamically create a func per endpoint, we handle each endpoint
 		// through the same func and figure out which query to make based on the request path
 		mux.HandleFunc(ensureLeadingSlash(healthConfig.Path), healthEndpointHandler)
@@ -159,16 +133,11 @@ func ensureLeadingSlash(path string) string {
 }
 
 func healthEndpointHandler(w http.ResponseWriter, req *http.Request) {
-	// TODO-HIGH: we need separate health attempt counters per health endpoint
-	healthAttempts++
-	logger.Debug("healthAttempts has increased", "healthAttempts", healthAttempts)
-	(*healthAttemptsCounter).Add(context.Background(), 1, *extraAttributes)
-
 	// find the HealthEndpoint for the path in the request and execute the query for it
 	for _, healthEndpoint := range healthEndpoints {
 		if healthEndpoint.Path == req.URL.Path {
 			logger.Debug("execing query", "healthEndpoint", healthEndpoint)
-			queryResult, err := (*healthEndpoint.Query).exec()
+			queryResult, err := (*healthEndpoint.Query).exec(healthEndpoint.AttemptsMetric, healthEndpoint.ResponseTimeMetric)
 			if err != nil {
 				logger.Error("error while executing query for health endpoint",
 					"healthEndpoint", healthEndpoint,
