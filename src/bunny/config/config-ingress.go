@@ -23,6 +23,7 @@ type HealthConfig struct {
 	RangeQueryConfig   *RangeQueryConfig   `yaml:"rangeQuery"`
 }
 
+// TODO-MEDIUM: we should remove the "query" prefix on these names
 type InstantQueryConfig struct {
 	QueryTimeout             string `yaml:"queryTimeout"`
 	QueryRelativeInstantTime string `yaml:"queryRelativeInstantTime"`

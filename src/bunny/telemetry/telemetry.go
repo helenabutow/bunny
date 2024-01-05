@@ -118,25 +118,30 @@ func GoTelemetry(wg *sync.WaitGroup) {
 	logger.Info("ending go routine")
 }
 
-func InstantQuery(duration time.Duration, queryString string, instantTime time.Time) (bool, error) {
+// TODO-MEDIUM: remove the duplication between this and RangeQuery()
+func InstantQuery(timeout time.Duration, queryString string, instantTime time.Time) (bool, error) {
+	logger.Debug("execing instant query",
+		"timeout", timeout,
+		"queryString", queryString,
+		"instantTime", instantTime,
+	)
 	var err error
 	var queryOpts promql.QueryOpts
-	deadline, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(duration))
+	deadline, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	query, err := promQueryEngine.NewInstantQuery(deadline, promDB, queryOpts, queryString, instantTime)
 	var queryLogArgs []any = []any{
 		"err", err,
-		"duration", duration,
+		"timeout", timeout,
 		"queryString", queryString,
 		"instantTime", instantTime,
 	}
-	if err == context.DeadlineExceeded {
-		cancelFunc()
-		logger.Error("query deadline exceeded", queryLogArgs...)
-		return false, err
-	}
 	if err != nil {
 		cancelFunc()
-		logger.Error("could not create query", queryLogArgs...)
+		if err == context.DeadlineExceeded {
+			logger.Error("query deadline exceeded", queryLogArgs...)
+		} else {
+			logger.Error("could not create query", queryLogArgs...)
+		}
 		return false, err
 	}
 	var result *promql.Result = query.Exec(deadline)
@@ -153,27 +158,33 @@ func InstantQuery(duration time.Duration, queryString string, instantTime time.T
 	return handledResult, handledErr
 }
 
-func RangeQuery(duration time.Duration, queryString string, startTime time.Time, endTime time.Time, interval time.Duration) (bool, error) {
+func RangeQuery(timeout time.Duration, queryString string, startTime time.Time, endTime time.Time, interval time.Duration) (bool, error) {
+	logger.Debug("execing instant query",
+		"timeout", timeout,
+		"queryString", queryString,
+		"startTime", startTime,
+		"endTime", endTime,
+		"interval", interval,
+	)
 	var err error
 	var queryOpts promql.QueryOpts
-	deadline, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(duration))
+	deadline, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	query, err := promQueryEngine.NewRangeQuery(deadline, promDB, queryOpts, queryString, startTime, endTime, interval)
 	var queryLogArgs []any = []any{
 		"err", err,
-		"duration", duration,
+		"timeout", timeout,
 		"queryString", queryString,
 		"startTime", startTime,
 		"endTime", endTime,
 		"interval", interval,
 	}
-	if err == context.DeadlineExceeded {
-		cancelFunc()
-		logger.Error("query deadline exceeded", queryLogArgs...)
-		return false, err
-	}
 	if err != nil {
 		cancelFunc()
-		logger.Error("could not create query", queryLogArgs...)
+		if err == context.DeadlineExceeded {
+			logger.Error("query deadline exceeded", queryLogArgs...)
+		} else {
+			logger.Error("could not create query", queryLogArgs...)
+		}
 		return false, err
 	}
 	// TODO-LOW: we should time the queries and generate metrics for them
