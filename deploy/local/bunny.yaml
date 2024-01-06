@@ -55,8 +55,6 @@ ingress:
     openTelemetryMetricsPath: "otel-metrics"
     prometheusMetricsPath: "prom-metrics"
     # TODO-LOW: update README.md (in both the "Pod Spec" and "Config File" sections) on how this block works
-    # TODO-HIGH: the ingress metrics don't seem to be working
-    # there's inconsistent naming and some don't show up
     health:
       - path: "healthz-liveness"
         instantQuery:
