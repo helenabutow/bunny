@@ -69,8 +69,9 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 
 	// process probe configs
 	probes = []Probe{}
+	timeout := time.Duration(egressConfig.TimeoutMilliseconds) * time.Millisecond
 	for _, egressProbeConfig := range egressConfig.Probes {
-		var newProbe *Probe = newProbe(&egressProbeConfig)
+		var newProbe *Probe = newProbe(&egressProbeConfig, timeout)
 		probes = append(probes, *newProbe)
 	}
 

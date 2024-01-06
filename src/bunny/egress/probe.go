@@ -25,16 +25,16 @@ type ProbeAction interface {
 	act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
 }
 
-func newProbe(egressProbeConfig *config.EgressProbeConfig) *Probe {
+func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration) *Probe {
 	return &Probe{
 		Name:               egressProbeConfig.Name,
 		AttemptsMetric:     telemetry.NewAttemptsMetric(&egressProbeConfig.Metrics.Attempts, meter),
 		ResponseTimeMetric: telemetry.NewResponseTimeMetric(&egressProbeConfig.Metrics.ResponseTime, meter),
-		HTTPGetAction:      newHTTPGetAction(egressProbeConfig.HTTPGet),
+		HTTPGetAction:      newHTTPGetAction(egressProbeConfig.HTTPGet, timeout),
 	}
 }
 
-func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetAction {
+func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout time.Duration) *HTTPGetAction {
 	logger.Info("processing http probe config")
 	if httpGetActionConfig == nil {
 		return nil
@@ -56,8 +56,7 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig) *HTTPGetA
 	// this seems like the correct timeout based on https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
 	// (see the diagram in the "Client Timeouts" section)
 	newHTTPProbeClient := &http.Client{
-		// TODO-MEDIUM: this reference to egressConfig seems gross and possibly buggy
-		Timeout: time.Duration(egressConfig.TimeoutMilliseconds) * time.Millisecond,
+		Timeout: timeout,
 	}
 
 	return &HTTPGetAction{
