@@ -79,7 +79,11 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 	logger.Debug("delay set", "now", now)
 	logger.Debug("delay set", "initialDelayTime", initialDelayTime)
 
-	ticker.Reset(time.Duration(egressConfig.PeriodMilliseconds) * time.Millisecond)
+	if egressConfig.PeriodMilliseconds > 0 {
+		ticker.Reset(time.Duration(egressConfig.PeriodMilliseconds) * time.Millisecond)
+	} else {
+		ticker.Stop()
+	}
 	logger.Info("config update processing complete")
 }
 

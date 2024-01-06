@@ -66,10 +66,14 @@ ingress:
         metrics:
           attempts:
             name: "ingress_healthz_liveness_attempts"
-            enabled: false
+            enabled: true
             extraLabels:
               - name: "ingress_healthz_liveness_attempts_label_name"
                 value: "ingress_healthz_liveness_attempts_label_value"
+          responseTime:
+            name: "ingress_healthz_liveness_response_time"
+            enabled: true
+            extraLabels: []
       - path: "healthz-readiness"
         rangeQuery:
           timeout: "5s"
@@ -78,6 +82,10 @@ ingress:
           interval: "1s"
           query: "1.0 >= bool 0.2"
         metrics:
+          attempts:
+            name: "ingress_healthz_readiness_attempts"
+            enabled: true
+            extraLabels: []
           responseTime:
             name: "ingress_healthz_readiness_response_time"
             enabled: true

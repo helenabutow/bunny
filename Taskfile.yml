@@ -67,7 +67,7 @@ tasks:
 
 
   build-docker-image:
-    deps: [build-bin, configure-docker]
+    deps: [build-bunny, configure-docker]
     sources:
       - "{{.ROOT_DIR}}/bunny-linux"
       - "{{.ROOT_DIR}}/deploy/containers/bunny/Dockerfile"

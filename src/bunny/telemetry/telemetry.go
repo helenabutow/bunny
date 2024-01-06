@@ -54,8 +54,23 @@ func Init(sharedLogger *slog.Logger) {
 	}
 	PromRegistry = client_golang_prometheus.NewRegistry()
 	// add some additional metrics that are useful
+	// the process collector only produces metrics on Linux machines with an accessible /proc filesystem
+	// an example of what it gives:
+	// process_cpu_seconds_total 0.02
+	// process_max_fds 1.048576e+06
+	// process_open_fds 13
+	// process_resident_memory_bytes 3.0150656e+07
+	// process_start_time_seconds 1.70450088028e+09
+	// process_virtual_memory_bytes 1.282310144e+09
+	// process_virtual_memory_max_bytes 1.8446744073709552e+19
+	processCollectorOpts := client_golang_prometheus_collectors.ProcessCollectorOpts{
+		PidFn:        nil,
+		Namespace:    "",
+		ReportErrors: false,
+	}
 	PromRegistry.MustRegister(
 		client_golang_prometheus_collectors.NewGoCollector(),
+		client_golang_prometheus_collectors.NewProcessCollector(processCollectorOpts),
 	)
 	// Prometheus uses a logging library from outside the standard library
 	// so we have to adapt it to work nicely with slog
@@ -101,6 +116,10 @@ func Init(sharedLogger *slog.Logger) {
 	provider = metric.NewMeterProvider(metric.WithReader(exporter))
 	// register a global default meter provider so that any libraries that we depend on have one to use
 	otel.SetMeterProvider(provider)
+
+	// TODO-LOW: add support for pushing metrics to OTLP endpoints
+	// right now we're using otelcol as a separate process to scrape otel provided Prometheus metrics and pushing them into Grafana
+	// we should be able to push them directly into an OTLP endpoint instead
 
 	logger.Info("Telemetry is initialized")
 }
