@@ -94,3 +94,31 @@ ingress:
             extraLabels: []
 signals:
   watchedProcessName: "sleep"
+telemetry:
+  openTelemetry:
+    # the otlp exporters are configured through env vars
+    # see links for each of their docs at https://opentelemetry.io/docs/instrumentation/go/exporters/
+    exporters: 
+      - "stdoutmetric"
+      - "prometheus"
+      - "otlpmetrichttp"
+      - "otlpmetricgrpc"
+      - "stdouttrace"
+      - "otlptracehttp"
+      - "otlptracegrpc"
+  prometheus:
+    # setting tsdbPath to an empty string results in a temp dir being created
+    tsdbPath: ""
+    tsdbOptions:
+      # see https://pkg.go.dev/github.com/prometheus/prometheus@v0.48.1/tsdb#Options
+      # for a description of what these do. The other options are the defaults.
+      retentionDurationMilliseconds: 3600000
+      minBlockDurationMilliseconds: 300000
+      maxBlockDurationMilliseconds: 900000
+    promql:
+      maxConcurrentQueries: 1000
+      engineOptions:
+        maxSamples: 50000000
+        timeoutMilliseconds: 10000
+        lookbackDeltaMilliseconds: 900000
+        noStepSubqueryIntervalMilliseconds: 1000

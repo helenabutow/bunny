@@ -34,13 +34,13 @@ func main() {
 	config.AddChannelListener(&egress.ConfigUpdateChannel)
 	config.AddChannelListener(&ingress.ConfigUpdateChannel)
 	config.AddChannelListener(&signals.ConfigUpdateChannel)
+	config.AddChannelListener(&telemetry.ConfigUpdateChannel)
+	telemetry.AddChannelListener(&egress.ConfigStageChannel)
+	telemetry.AddChannelListener(&ingress.ConfigStageChannel)
 	signals.AddChannelListener(&config.OSSignalsChannel)
 	signals.AddChannelListener(&egress.OSSignalsChannel)
 	signals.AddChannelListener(&ingress.OSSignalsChannel)
 	signals.AddChannelListener(&telemetry.OSSignalsChannel)
-
-	// do the rest of each package's init
-	telemetry.Init(logging.ConfigureLogger("telemetry"))
 
 	// start each go routinue for each package that has one
 	var wg sync.WaitGroup

@@ -46,7 +46,7 @@ func GoSignals(wg *sync.WaitGroup) {
 				continue
 			}
 			logger.Info("received config update")
-			signalsConfig = &bunnyConfig.SignalsConfig
+			signalsConfig = &bunnyConfig.Signals
 			logger.Info("config update processing complete")
 
 		case signal, ok := <-osSignalsChannel:
@@ -92,7 +92,7 @@ func GoSignals(wg *sync.WaitGroup) {
 			for _, listenerChannel := range osSignalListenerChannels {
 				listenerChannel <- signal
 			}
-			logger.Info("ending go routine")
+			logger.Info("completed shutdowns. Returning from go routine")
 			return
 		}
 	}

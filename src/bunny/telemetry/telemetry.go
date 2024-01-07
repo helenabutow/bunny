@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kitlog "github.com/go-kit/log"
+	"github.com/go-logr/logr"
 	client_golang_prometheus "github.com/prometheus/client_golang/prometheus"
 	client_golang_prometheus_collectors "github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/prometheus/promql"
@@ -21,10 +22,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	otel_not_sdk_metric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -33,6 +35,8 @@ import (
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var configStageChannels []chan config.ConfigStage = []chan config.ConfigStage{}
+var telemetryConfig *config.TelemetryConfig = nil
 
 // OpenTelemetry things
 var meterProvider *metric.MeterProvider = nil
@@ -43,14 +47,17 @@ var promDB *tsdb.DB = nil
 var PromRegistry *client_golang_prometheus.Registry = nil
 var promQueryEngine *promql.Engine = nil
 
-func Init(sharedLogger *slog.Logger) {
-	logger = sharedLogger
-	logger.Info("Telemetry initializing")
+func AddChannelListener(configStageChannel *(chan config.ConfigStage)) {
+	configStageChannels = append(configStageChannels, *configStageChannel)
+}
+
+func configureTelemetry() {
+	logger.Info("configuring telemetry")
 	var err error
 
 	// setup Prometheus
-	// TODO-LOW: doc this env var and how memory backed emptyDirs or other fast storage should be used
-	tsdbDirectoryPath := os.Getenv("TSDB_PATH")
+	// TODO-LOW: doc this config and how memory backed emptyDirs or other fast storage should be used
+	tsdbDirectoryPath := telemetryConfig.Prometheus.TSDBPath
 	if tsdbDirectoryPath == "" {
 		tsdbDirectoryPath, err = os.MkdirTemp("/tmp", "bunny-tsdb-")
 		if err != nil {
@@ -82,27 +89,29 @@ func Init(sharedLogger *slog.Logger) {
 	// so we have to adapt it to work nicely with slog
 	kitLogger := logging.NewSlogAdapterLogger()
 	kitLogger = kitlog.With(kitLogger, "caller", kitlog.DefaultCaller)
-	// TODO-MEDIUM: think about looking at not using the default options for tsdb
-	// this help ensure that we don't use disk too much
 	tsdbOptions := tsdb.DefaultOptions()
+	tsdbOptions.RetentionDuration = int64(telemetryConfig.Prometheus.TSDBOptions.RetentionDurationMilliseconds)
+	tsdbOptions.MinBlockDuration = int64(telemetryConfig.Prometheus.TSDBOptions.MinBlockDurationMilliseconds)
+	tsdbOptions.MaxBlockDuration = int64(telemetryConfig.Prometheus.TSDBOptions.MaxBlockDurationMilliseconds)
 	promDB, err = tsdb.Open(tsdbDirectoryPath, kitLogger, PromRegistry, tsdbOptions, tsdb.NewDBStats())
 	if err != nil {
 		logger.Error("error while creating Prometheus database", "err", err)
 	}
 	// TODO-LOW: we should make the max concurrent queries configurable (instead of just setting it to 1000)
-	activeQueryTracker := promql.NewActiveQueryTracker(tsdbDirectoryPath, 1000, kitLogger)
+	maxConcurrentQueries := telemetryConfig.Prometheus.PromQL.MaxConcurrentQueries
+	activeQueryTracker := promql.NewActiveQueryTracker(tsdbDirectoryPath, maxConcurrentQueries, kitLogger)
 	queryEngineOpts := promql.EngineOpts{
 		Logger: kitLogger,
 		Reg:    PromRegistry,
 		// TODO-LOW: we should make MaxSamples configurable
 		// higher values allow for more memory to be used
 		// see: https://manpages.debian.org/unstable/prometheus/prometheus.1.en.html#query.max_samples=50000000
-		MaxSamples:         50000000,
-		Timeout:            time.Duration(30) * time.Second,
+		MaxSamples:         telemetryConfig.Prometheus.PromQL.EngineOptions.MaxSamples,
+		Timeout:            time.Duration(telemetryConfig.Prometheus.PromQL.EngineOptions.TimeoutMilliseconds) * time.Millisecond,
 		ActiveQueryTracker: activeQueryTracker,
-		LookbackDelta:      time.Duration(0) * time.Second,
+		LookbackDelta:      time.Duration(telemetryConfig.Prometheus.PromQL.EngineOptions.LookbackDeltaMilliseconds) * time.Millisecond,
 		NoStepSubqueryIntervalFn: func(rangeMillis int64) int64 {
-			return time.Duration(1 * time.Second).Milliseconds()
+			return time.Duration(time.Duration(telemetryConfig.Prometheus.PromQL.EngineOptions.NoStepSubqueryIntervalMilliseconds) * time.Millisecond).Milliseconds()
 		},
 		EnableAtModifier:     true,
 		EnableNegativeOffset: true,
@@ -111,70 +120,126 @@ func Init(sharedLogger *slog.Logger) {
 	promQueryEngine = promql.NewEngine(queryEngineOpts)
 
 	// setup OpenTelemetry
+	// TODO-HIGH: make this work because otel logs clash with our logs
+	// make OpenTelemetry use our logger
+	handler := logger.Handler()
+	logrLogger := logr.FromSlogHandler(logger.Handler())
+	logger.Debug("bridging loggers",
+		"handler", handler,
+		"logrLogger", logrLogger,
+		"logrLogger.Enabled()", logrLogger.Enabled(),
+	)
+	otel.SetLogger(logrLogger)
 	// the HTTP Prometheus endpoints are in the ingress package
 	// removing the scope and target info seems like an easy bit of memory and bandwidth to save
-	// TODO-HIGH: the OTLP providers need testing
-	// the doc links on this page describe how to config the env vars
-	// also add support in config for this - just an array of strings to select the combo of below should do enough
-	var prometheusExporter *prometheus.Exporter = nil
-	prometheusExporter, err = prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
-	if err != nil {
-		logger.Error("error while creating Prometheus exporter", "err", err)
+	// TODO-HIGH: the OTLP and stdout providers need testing
+	// TODO-MEDIUM: most of the exporters have a Shutdown function that needs to be called
+	// we need to call it when we get the kill signal and before replacing them when reconfiguring
+	// (likely when editing bunny.yaml)
+	// this is likely the cause of the 10 second delay during shutdown
+	var metricOptions []metric.Option = []metric.Option{}
+	var traceProviderOptions []trace.TracerProviderOption = []trace.TracerProviderOption{}
+	for _, exporterName := range telemetryConfig.OpenTelemetry.Exporters {
+		switch exporterName {
+		case "stdoutmetric":
+			exporter, err := stdoutmetric.New()
+			if err != nil {
+				logger.Error("error while creating stdoutmetric exporter", "err", err)
+				continue
+			}
+			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
+			metricOptions = append(metricOptions, reader)
+		case "prometheus":
+			prometheusExporter, err := prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+			if err != nil {
+				logger.Error("error while creating prometheus exporter", "err", err)
+				continue
+			}
+			var reader = metric.WithReader(prometheusExporter)
+			metricOptions = append(metricOptions, reader)
+		case "otlpmetrichttp":
+			exporter, err := otlpmetrichttp.New(context.Background())
+			if err != nil {
+				logger.Error("error while creating otlpmetrichttp exporter", "err", err)
+				continue
+			}
+			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
+			metricOptions = append(metricOptions, reader)
+		case "otlpmetricgrpc":
+			exporter, err := otlpmetricgrpc.New(context.Background())
+			if err != nil {
+				logger.Error("error while creating otlpmetricgrpc exporter", "err", err)
+				continue
+			}
+			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
+			metricOptions = append(metricOptions, reader)
+		case "stdouttrace":
+			exporter, err := stdouttrace.New()
+			if err != nil {
+				logger.Error("error while creating stdouttrace exporter", "err", err)
+				continue
+			}
+			traceProviderOptions = append(traceProviderOptions, trace.WithBatcher(exporter))
+		case "otlptracehttp":
+			exporter, err := otlptracehttp.New(context.Background())
+			if err != nil {
+				logger.Error("error while creating otlptracehttp exporter", "err", err)
+				continue
+			}
+			traceProviderOptions = append(traceProviderOptions, trace.WithBatcher(exporter))
+		case "otlptracegrpc":
+			exporter, err := otlptracegrpc.New(context.Background())
+			if err != nil {
+				logger.Error("error while creating otlptracegrpc exporter", "err", err)
+				continue
+			}
+			traceProviderOptions = append(traceProviderOptions, trace.WithBatcher(exporter))
+		}
 	}
-	var otlpMetricsOverHTTPExporter *otlpmetrichttp.Exporter = nil
-	otlpMetricsOverHTTPExporter, err = otlpmetrichttp.New(context.Background())
-	if err != nil {
-		logger.Error("error while creating OTLP Metrics over HTTP exporter", "err", err)
-	}
-	var otlpMetricsOverGRPCExporter *otlpmetricgrpc.Exporter = nil
-	otlpMetricsOverGRPCExporter, err = otlpmetricgrpc.New(context.Background())
-	if err != nil {
-		logger.Error("error while creating OTLP Metrics over gRPC exporter", "err", err)
-	}
-	var otlpTraceOverHTTPExporter *otlptrace.Exporter = nil
-	otlpTraceOverHTTPExporter, err = otlptracehttp.New(context.Background())
-	if err != nil {
-		logger.Error("error while creating OTLP Trace over HTTP exporter", "err", err)
-	}
-	var otlpTraceOverGRPCExporter *otlptrace.Exporter = nil
-	otlpTraceOverGRPCExporter, err = otlptracegrpc.New(context.Background())
-	if err != nil {
-		logger.Error("error while creating OTLP Trace over gRPC exporter", "err", err)
-	}
-	meterProvider = metric.NewMeterProvider(
-		metric.WithReader(prometheusExporter),
-		metric.WithReader(metric.NewPeriodicReader(otlpMetricsOverHTTPExporter)),
-		metric.WithReader(metric.NewPeriodicReader(otlpMetricsOverGRPCExporter)),
-	)
-	traceProvider = trace.NewTracerProvider(
-		trace.WithBatcher(otlpTraceOverHTTPExporter),
-		trace.WithBatcher(otlpTraceOverGRPCExporter),
-	)
+	meterProvider = metric.NewMeterProvider(metricOptions...)
+	traceProvider = trace.NewTracerProvider(traceProviderOptions...)
 	// register a global default providers so that any libraries that we depend on have one to use
 	otel.SetMeterProvider(meterProvider)
 	otel.SetTracerProvider(traceProvider)
 
-	// TODO-LOW: add support for pushing metrics to OTLP endpoints
-	// right now we're using otelcol as a separate process to scrape otel provided Prometheus metrics and pushing them into Grafana
-	// we should be able to push them directly into an OTLP endpoint instead
+	// notify of telemetry config completion via channel
+	for _, configStageChannel := range configStageChannels {
+		configStageChannel <- config.ConfigStageTelemetryCompleted
+	}
 
-	logger.Info("Telemetry is initialized")
+	logger.Info("telemetry configured")
 }
 
 func GoTelemetry(wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	logger = logging.ConfigureLogger("telemetry")
 	logger.Info("Telemetry is go!")
 
-	logger.Info("waiting for signal")
-	signal, ok := <-OSSignalsChannel
-	if !ok {
-		logger.Error("could not process signal from signal channel")
+	for {
+		logger.Debug("waiting for config or signal")
+		select {
+		case bunnyConfig, ok := <-ConfigUpdateChannel:
+			if !ok {
+				logger.Error("could not process config from config update channel")
+				continue
+			}
+			logger.Info("received config update")
+			telemetryConfig = &bunnyConfig.Telemetry
+			configureTelemetry()
+			logger.Info("config update processing complete")
+
+		case signal, ok := <-OSSignalsChannel:
+			if !ok {
+				logger.Error("could not process signal from signal channel")
+			}
+			logger.Info("received signal. Ending go routine.", "signal", signal)
+			meterProvider.Shutdown(context.Background())
+			traceProvider.Shutdown(context.Background())
+			logger.Info("completed shutdowns. Returning from go routine")
+			return
+		}
 	}
-	logger.Info("received signal", "signal", signal)
-	meterProvider.Shutdown(context.Background())
-	traceProvider.Shutdown(context.Background())
-	logger.Info("ending go routine")
 }
 
 // TODO-MEDIUM: remove the duplication between this and RangeQuery()

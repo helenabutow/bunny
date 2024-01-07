@@ -21,6 +21,7 @@ import (
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var ConfigStageChannel chan config.ConfigStage = make(chan config.ConfigStage, 1)
 var ingressConfig *config.IngressConfig = nil
 var meter *metric.Meter = nil
 var httpServer *http.Server = nil
@@ -41,7 +42,19 @@ func GoIngress(wg *sync.WaitGroup) {
 				continue
 			}
 			logger.Info("received config update")
-			ingressConfig = &bunnyConfig.IngressConfig
+			ingressConfig = &bunnyConfig.Ingress
+
+			// wait until telemetry finishes processing its config
+			configStage, ok := <-ConfigStageChannel
+			if !ok {
+				logger.Error("ConfigStageChannel is not ok. Returning")
+				return
+			}
+			if configStage != config.ConfigStageTelemetryCompleted {
+				logger.Error("unknown config stage. Returning")
+				return
+			}
+
 			newMeter := otel.GetMeterProvider().Meter("bunny/ingress")
 			meter = &newMeter
 
@@ -67,6 +80,7 @@ func GoIngress(wg *sync.WaitGroup) {
 			}
 			logger.Info("received signal. Ending go routine.", "signal", signal)
 			shutdownHTTPServer()
+			logger.Info("completed shutdowns. Returning from go routine")
 			return
 		}
 	}

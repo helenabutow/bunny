@@ -15,6 +15,7 @@ import (
 var logger *slog.Logger = nil
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
+var ConfigStageChannel chan config.ConfigStage = make(chan config.ConfigStage, 1)
 var ticker *time.Ticker = nil
 var initialDelayTime time.Time = time.Now()
 var egressConfig *config.EgressConfig = nil
@@ -52,6 +53,7 @@ func GoEgress(wg *sync.WaitGroup) {
 				logger.Error("could not process signal from signal channel")
 			}
 			logger.Info("received signal. Ending go routine.", "signal", signal)
+			logger.Info("completed shutdowns. Returning from go routine")
 			return
 		}
 	}
@@ -59,7 +61,19 @@ func GoEgress(wg *sync.WaitGroup) {
 
 func updateConfig(bunnyConfig *config.BunnyConfig) {
 	logger.Info("received config update")
-	egressConfig = &bunnyConfig.EgressConfig
+	egressConfig = &bunnyConfig.Egress
+
+	// wait until telemetry finishes processing its config
+	configStage, ok := <-ConfigStageChannel
+	if !ok {
+		logger.Error("ConfigStageChannel is not ok. Returning")
+		return
+	}
+	if configStage != config.ConfigStageTelemetryCompleted {
+		logger.Error("unknown config stage. Returning")
+		return
+	}
+
 	newMeter := otel.GetMeterProvider().Meter("bunny/egress")
 	meter = &newMeter
 

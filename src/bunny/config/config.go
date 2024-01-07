@@ -16,9 +16,10 @@ import (
 )
 
 type BunnyConfig struct {
-	EgressConfig  EgressConfig  `yaml:"egress"`
-	IngressConfig IngressConfig `yaml:"ingress"`
-	SignalsConfig SignalsConfig `yaml:"signals"`
+	Egress    EgressConfig    `yaml:"egress"`
+	Ingress   IngressConfig   `yaml:"ingress"`
+	Signals   SignalsConfig   `yaml:"signals"`
+	Telemetry TelemetryConfig `yaml:"telemetry"`
 }
 
 // EgressConfig is in config-egress.go
@@ -36,9 +37,15 @@ type ExtraLabelsConfig struct {
 	Value string `yaml:"value"`
 }
 
+// TelemetryConfig is in config-telemetry.go
+
 type SignalsConfig struct {
 	WatchedProcessName *string `yaml:"watchedProcessName"`
 }
+
+type ConfigStage int
+
+const ConfigStageTelemetryCompleted = 1
 
 const defaultConfigFilePath string = "/config/bunny.yaml"
 
@@ -141,6 +148,7 @@ func GoConfig(wg *sync.WaitGroup) {
 				logger.Error("could not process signal from signal channel")
 			}
 			logger.Info("received signal. Ending go routine.", "signal", signal)
+			logger.Info("completed shutdowns. Returning from go routine")
 			return
 		}
 	}
@@ -153,7 +161,7 @@ func AddChannelListener(configUpdateChannel *(chan BunnyConfig)) {
 // TODO-MEDIUM: we need a better default config
 func generateDefaultConfig() *BunnyConfig {
 	return &BunnyConfig{
-		IngressConfig: IngressConfig{
+		Ingress: IngressConfig{
 			HTTPServerConfig: HTTPServerConfig{
 				Port:                          1312,
 				ReadTimeoutMilliseconds:       5000,
