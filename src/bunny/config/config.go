@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bunny/logging"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -48,15 +49,10 @@ var bunnyConfig *BunnyConfig = nil
 var configUpdateChannels []chan BunnyConfig = []chan BunnyConfig{}
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 
-func Init(sharedLogger *slog.Logger) {
-	logger = sharedLogger
-	logger.Info("Config initializing")
-	logger.Info("Config is initialized")
-}
-
 func GoConfig(wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	logger = logging.ConfigureLogger("config")
 	logger.Info("Config is go!")
 
 	// figure out where to read the config file from

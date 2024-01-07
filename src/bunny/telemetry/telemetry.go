@@ -19,9 +19,15 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	otel_not_sdk_metric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 var logger *slog.Logger = nil
@@ -29,8 +35,8 @@ var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 
 var OSSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 
 // OpenTelemetry things
-var exporter *prometheus.Exporter = nil
-var provider *metric.MeterProvider = nil
+var meterProvider *metric.MeterProvider = nil
+var traceProvider *trace.TracerProvider = nil
 
 // Prometheus things
 var promDB *tsdb.DB = nil
@@ -105,16 +111,48 @@ func Init(sharedLogger *slog.Logger) {
 	promQueryEngine = promql.NewEngine(queryEngineOpts)
 
 	// setup OpenTelemetry
-	// the HTTP endpoint is in the ingress package
+	// the HTTP Prometheus endpoints are in the ingress package
 	// removing the scope and target info seems like an easy bit of memory and bandwidth to save
-	exporter, err = prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
-
+	// TODO-HIGH: the OTLP providers need testing
+	// the doc links on this page describe how to config the env vars
+	// also add support in config for this - just an array of strings to select the combo of below should do enough
+	var prometheusExporter *prometheus.Exporter = nil
+	prometheusExporter, err = prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 	if err != nil {
 		logger.Error("error while creating Prometheus exporter", "err", err)
 	}
-	provider = metric.NewMeterProvider(metric.WithReader(exporter))
-	// register a global default meter provider so that any libraries that we depend on have one to use
-	otel.SetMeterProvider(provider)
+	var otlpMetricsOverHTTPExporter *otlpmetrichttp.Exporter = nil
+	otlpMetricsOverHTTPExporter, err = otlpmetrichttp.New(context.Background())
+	if err != nil {
+		logger.Error("error while creating OTLP Metrics over HTTP exporter", "err", err)
+	}
+	var otlpMetricsOverGRPCExporter *otlpmetricgrpc.Exporter = nil
+	otlpMetricsOverGRPCExporter, err = otlpmetricgrpc.New(context.Background())
+	if err != nil {
+		logger.Error("error while creating OTLP Metrics over gRPC exporter", "err", err)
+	}
+	var otlpTraceOverHTTPExporter *otlptrace.Exporter = nil
+	otlpTraceOverHTTPExporter, err = otlptracehttp.New(context.Background())
+	if err != nil {
+		logger.Error("error while creating OTLP Trace over HTTP exporter", "err", err)
+	}
+	var otlpTraceOverGRPCExporter *otlptrace.Exporter = nil
+	otlpTraceOverGRPCExporter, err = otlptracegrpc.New(context.Background())
+	if err != nil {
+		logger.Error("error while creating OTLP Trace over gRPC exporter", "err", err)
+	}
+	meterProvider = metric.NewMeterProvider(
+		metric.WithReader(prometheusExporter),
+		metric.WithReader(metric.NewPeriodicReader(otlpMetricsOverHTTPExporter)),
+		metric.WithReader(metric.NewPeriodicReader(otlpMetricsOverGRPCExporter)),
+	)
+	traceProvider = trace.NewTracerProvider(
+		trace.WithBatcher(otlpTraceOverHTTPExporter),
+		trace.WithBatcher(otlpTraceOverGRPCExporter),
+	)
+	// register a global default providers so that any libraries that we depend on have one to use
+	otel.SetMeterProvider(meterProvider)
+	otel.SetTracerProvider(traceProvider)
 
 	// TODO-LOW: add support for pushing metrics to OTLP endpoints
 	// right now we're using otelcol as a separate process to scrape otel provided Prometheus metrics and pushing them into Grafana
@@ -134,7 +172,8 @@ func GoTelemetry(wg *sync.WaitGroup) {
 		logger.Error("could not process signal from signal channel")
 	}
 	logger.Info("received signal", "signal", signal)
-	provider.Shutdown(context.Background())
+	meterProvider.Shutdown(context.Background())
+	traceProvider.Shutdown(context.Background())
 	logger.Info("ending go routine")
 }
 

@@ -34,6 +34,7 @@ func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration
 	}
 }
 
+// TODO-HIGH: add support for tracing http probes
 func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout time.Duration) *HTTPGetAction {
 	logger.Info("processing http probe config")
 	if httpGetActionConfig == nil {

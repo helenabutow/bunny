@@ -2,6 +2,7 @@ package signals
 
 import (
 	"bunny/config"
+	"bunny/logging"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -20,17 +21,6 @@ var osSignalListenerChannels []chan os.Signal = []chan os.Signal{}
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var signalsConfig *config.SignalsConfig = nil
 
-func Init(sharedLogger *slog.Logger) {
-	logger = sharedLogger
-	logger.Info("Signals initializing")
-	// since we may need to wait for a process to die before exiting,
-	// we register a single channel here with os/signal, then in
-	// GoSignal, we wait for it and for the process to die before
-	// forwarding it further to the other channels
-	signal.Notify(osSignalsChannel, syscall.SIGINT, syscall.SIGTERM)
-	logger.Info("Signals is initialized")
-}
-
 func AddChannelListener(listenersChannel *(chan os.Signal)) {
 	osSignalListenerChannels = append(osSignalListenerChannels, *listenersChannel)
 }
@@ -38,13 +28,21 @@ func AddChannelListener(listenersChannel *(chan os.Signal)) {
 func GoSignals(wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	logger = logging.ConfigureLogger("signals")
 	logger.Info("Signals is go!")
+
+	// since we may need to wait for a process to die before exiting,
+	// we register a single channel here with os/signal, then we wait
+	// for it and for the process to die before forwarding it further
+	// to the other channels
+	signal.Notify(osSignalsChannel, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
 		logger.Debug("waiting for config or signal")
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
+				logger.Error("could not process config from config update channel")
 				continue
 			}
 			logger.Info("received config update")

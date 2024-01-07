@@ -15,8 +15,12 @@ import (
 
 func main() {
 	var logger *slog.Logger = logging.ConfigureLogger("main")
+	// this implies that dependencies which still use log instead of slog, use the logger for main
+	slog.SetDefault(logger)
+
 	logger.Info("begin")
 
+	// we have to do this super early in case GOMEMLIMIT is set really low
 	goMemLimitEnvVar := os.Getenv("GOMEMLIMIT")
 	goGCEnvVar := os.Getenv("GOGC")
 	if goMemLimitEnvVar == "" {
@@ -36,11 +40,7 @@ func main() {
 	signals.AddChannelListener(&telemetry.OSSignalsChannel)
 
 	// do the rest of each package's init
-	config.Init(logging.ConfigureLogger("config"))
-	egress.Init(logging.ConfigureLogger("egress"))
-	ingress.Init(logging.ConfigureLogger("ingress"))
 	telemetry.Init(logging.ConfigureLogger("telemetry"))
-	signals.Init(logging.ConfigureLogger("signals"))
 
 	// start each go routinue for each package that has one
 	var wg sync.WaitGroup

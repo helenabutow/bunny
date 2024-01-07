@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"bunny/config"
+	"bunny/logging"
 	"bunny/telemetry"
 	"context"
 	"fmt"
@@ -25,15 +26,10 @@ var meter *metric.Meter = nil
 var httpServer *http.Server = nil
 var healthEndpoints [](*HealthEndpoint) = [](*HealthEndpoint){}
 
-func Init(sharedLogger *slog.Logger) {
-	logger = sharedLogger
-	logger.Info("Ingress initializing")
-	logger.Info("Ingress is initialized")
-}
-
 func GoIngress(wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	logger = logging.ConfigureLogger("ingress")
 	logger.Info("Ingress is go!")
 
 	for {
@@ -41,6 +37,7 @@ func GoIngress(wg *sync.WaitGroup) {
 		select {
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
+				logger.Error("could not process config from config update channel")
 				continue
 			}
 			logger.Info("received config update")

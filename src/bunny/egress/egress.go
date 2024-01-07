@@ -2,6 +2,7 @@ package egress
 
 import (
 	"bunny/config"
+	"bunny/logging"
 	"log/slog"
 	"os"
 	"sync"
@@ -20,22 +21,16 @@ var egressConfig *config.EgressConfig = nil
 var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
 
-func Init(sharedLogger *slog.Logger) {
-	logger = sharedLogger
-	logger.Info("Egress initializing")
+func GoEgress(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	logger = logging.ConfigureLogger("egress")
+	logger.Info("Egress is go!")
 
 	// yes, this looks silly
 	// the goal here is to prevent the ticker from firing until config has been loaded
 	ticker = time.NewTicker(1 * time.Hour)
 	ticker.Stop()
-
-	logger.Info("Egress is initialized")
-}
-
-func GoEgress(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	logger.Info("Egress is go!")
 
 	for {
 		logger.Debug("waiting for config or signal")
@@ -47,6 +42,7 @@ func GoEgress(wg *sync.WaitGroup) {
 
 		case bunnyConfig, ok := <-ConfigUpdateChannel:
 			if !ok {
+				logger.Error("could not process config from config update channel")
 				continue
 			}
 			updateConfig(&bunnyConfig)

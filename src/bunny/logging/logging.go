@@ -50,7 +50,6 @@ func ConfigureLogger(packageName string) *slog.Logger {
 	default:
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &handlerOptions))
 	}
-	slog.SetDefault(logger)
 	return logger
 }
 
