@@ -82,6 +82,12 @@ The following env vars can be set:
 
 <!-- TODO-LOW: write docs on the config file. Or think about adding comments to the example config file -->
 
+# Known Issues and Bugs
+
+## failed to upload metrics: failed to send metrics to http://localhost:30001/otlp/v1/metrics: 400 Bad Request
+
+This looks like a bug in either OpenTelemetry or Grafana Mimir. From running Wireshark, it looks like otel tries to post to Mimir on that endpoint but doesn't send any metrics and Mimir responds by saying that the timestamp in the request was set to the unix epoch. So either otel needs to stop pushing when it has no metrics to send or Mimir needs to just accept pushes with no metrics.
+
 # Building
 
 <!-- TODO-LOW: write docs on building the binaries and Docker image -->
