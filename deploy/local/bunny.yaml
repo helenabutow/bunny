@@ -102,10 +102,10 @@ telemetry:
       # - "stdoutmetric"
       # - "prometheus"
       - "otlpmetrichttp"
-      - "otlpmetricgrpc"
+      # - "otlpmetricgrpc"
       # - "stdouttrace"
       - "otlptracehttp"
-      - "otlptracegrpc"
+      # - "otlptracegrpc"
   prometheus:
     # setting tsdbPath to an empty string results in a temp dir being created
     tsdbPath: ""

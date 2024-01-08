@@ -122,21 +122,9 @@ func configureTelemetry() {
 	// setup OpenTelemetry
 	// TODO-HIGH: make this work because otel logs clash with our logs
 	// make OpenTelemetry use our logger
-	handler := logger.Handler()
 	logrLogger := logr.FromSlogHandler(logger.Handler())
-	logger.Debug("bridging loggers",
-		"handler", handler,
-		"logrLogger", logrLogger,
-		"logrLogger.Enabled()", logrLogger.Enabled(),
-	)
 	otel.SetLogger(logrLogger)
-	// the HTTP Prometheus endpoints are in the ingress package
-	// removing the scope and target info seems like an easy bit of memory and bandwidth to save
-	// TODO-HIGH: the OTLP and stdout providers need testing
-	// TODO-MEDIUM: most of the exporters have a Shutdown function that needs to be called
-	// we need to call it when we get the kill signal and before replacing them when reconfiguring
-	// (likely when editing bunny.yaml)
-	// this is likely the cause of the 10 second delay during shutdown
+	// setup the otel exporters
 	var metricOptions []metric.Option = []metric.Option{}
 	var traceProviderOptions []trace.TracerProviderOption = []trace.TracerProviderOption{}
 	for _, exporterName := range telemetryConfig.OpenTelemetry.Exporters {
@@ -150,12 +138,14 @@ func configureTelemetry() {
 			var reader = metric.WithReader(metric.NewPeriodicReader(exporter, metric.WithInterval(1*time.Second)))
 			metricOptions = append(metricOptions, reader)
 		case "prometheus":
-			prometheusExporter, err := prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
+			// the HTTP Prometheus endpoints are in the ingress package
+			// removing the scope and target info seems like an easy bit of memory and bandwidth to save
+			exporter, err := prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
 			if err != nil {
 				logger.Error("error while creating prometheus exporter", "err", err)
 				continue
 			}
-			var reader = metric.WithReader(prometheusExporter)
+			var reader = metric.WithReader(exporter)
 			metricOptions = append(metricOptions, reader)
 		case "otlpmetrichttp":
 			exporter, err := otlpmetrichttp.New(context.Background())
@@ -434,5 +424,3 @@ func NewLabels(extraLabels []config.ExtraLabelsConfig) client_golang_prometheus.
 }
 
 // TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog
-
-// TODO-MEDIUM: a useful way to get traces to console (for debugging): https://github.com/equinix-labs/otel-cli#examples

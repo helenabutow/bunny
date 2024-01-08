@@ -61,8 +61,13 @@ tasks:
       TZ: UTC
       # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
       # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
-      # OTEL_METRIC_EXPORT_INTERVAL: "1000" # 1000 = 1 second
-      # OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
+      # TODO-LOW: doc how if these aren't set, shutdown takes about 10 seconds
+      OTEL_METRIC_EXPORT_INTERVAL: "1000" # 1000 = 1 second
+      OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
+      # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)
+      OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:30001/otlp/v1/metrics"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:30002/v1/traces"
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]
@@ -210,31 +215,3 @@ tasks:
   run-otelcol:
     cmds:
       - otelcol --config="{{.ROOT_DIR}}/deploy/local/otelcol.yaml"
-
-  add-prometheus-helm-repo:
-    cmds:
-      - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-    status:
-      - helm repo list --output json | jq --exit-status '.[] | select(.name == "prometheus-community")'
-  
-  install-prometheus:
-    deps: [configure-docker, add-prometheus-helm-repo]
-    cmds:
-      - helm install prometheus prometheus-community/prometheus --atomic --wait --create-namespace --namespace prometheus --version 25.8.2 --values "{{.ROOT_DIR}}/deploy/kubernetes/prometheus/prometheus-values.yaml"
-    status:
-      - helm list --namespace prometheus --output json | jq --exit-status '.[] | select(.name == "prometheus")'
-
-  delete-prometheus:
-    cmds:
-      - helm delete --wait -n prometheus prometheus
-      - kubectl delete --ignore-not-found=true ns prometheus
-    status:
-      - helm list --namespace prometheus --output json | jq --exit-status '[ .[] | select(.name == "prometheus") ] | length == 0'
-  
-  run-prometheus:
-    cmds:
-      - |
-        prometheus --config.file="{{.ROOT_DIR}}/deploy/local/prometheus.yaml" \
-          --storage.tsdb.retention.time=1h \
-          --storage.tsdb.retention.size=64MB \
-          --storage.tsdb.path=/tmp/prometheus
