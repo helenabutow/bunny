@@ -97,15 +97,11 @@ func configureTelemetry() {
 	if err != nil {
 		logger.Error("error while creating Prometheus database", "err", err)
 	}
-	// TODO-LOW: we should make the max concurrent queries configurable (instead of just setting it to 1000)
 	maxConcurrentQueries := telemetryConfig.Prometheus.PromQL.MaxConcurrentQueries
 	activeQueryTracker := promql.NewActiveQueryTracker(tsdbDirectoryPath, maxConcurrentQueries, kitLogger)
 	queryEngineOpts := promql.EngineOpts{
-		Logger: kitLogger,
-		Reg:    PromRegistry,
-		// TODO-LOW: we should make MaxSamples configurable
-		// higher values allow for more memory to be used
-		// see: https://manpages.debian.org/unstable/prometheus/prometheus.1.en.html#query.max_samples=50000000
+		Logger:             kitLogger,
+		Reg:                PromRegistry,
 		MaxSamples:         telemetryConfig.Prometheus.PromQL.EngineOptions.MaxSamples,
 		Timeout:            time.Duration(telemetryConfig.Prometheus.PromQL.EngineOptions.TimeoutMilliseconds) * time.Millisecond,
 		ActiveQueryTracker: activeQueryTracker,
