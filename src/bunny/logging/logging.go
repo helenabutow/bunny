@@ -2,7 +2,9 @@ package logging
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"runtime"
@@ -11,6 +13,7 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	"github.com/golang-cz/devslog"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 )
 
 func ConfigureLogger(packageName string) *slog.Logger {
@@ -120,4 +123,46 @@ func (l *slogAdapterLogger) Log(keyvals ...interface{}) error {
 	r.Add(flat...)
 	var err error = l.Logger.Handler().Handle(context.Background(), r)
 	return err
+}
+
+type OtelEncoder struct {
+	Logger *slog.Logger
+}
+
+func NewOtelEncoder(l *slog.Logger) stdoutmetric.Encoder {
+	return OtelEncoder{
+		Logger: l,
+	}
+}
+
+func (e OtelEncoder) Encode(value any) error {
+	var pcs [1]uintptr
+	runtime.Callers(3, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "stdoutmetric", pcs[0])
+	r.Add("value", value)
+	err := e.Logger.Handler().Handle(context.Background(), r)
+	return err
+}
+
+type OtelWriter struct {
+	Logger *slog.Logger
+}
+
+func NewOtelWriter(l *slog.Logger) io.Writer {
+	return OtelWriter{
+		Logger: l,
+	}
+}
+
+func (e OtelWriter) Write(p []byte) (int, error) {
+	var newMap map[string]any
+	err := json.Unmarshal(p, &newMap)
+	if err != nil {
+		return len(p), err
+	}
+	var pcs [1]uintptr
+	runtime.Callers(3, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, string(p), pcs[0])
+	err = e.Logger.Handler().Handle(context.Background(), r)
+	return len(p), err
 }

@@ -99,11 +99,11 @@ telemetry:
     # the otlp exporters are configured through env vars
     # see links for each of their docs at https://opentelemetry.io/docs/instrumentation/go/exporters/
     exporters: 
-      - "stdoutmetric"
-      - "prometheus"
+      # - "stdoutmetric"
+      # - "prometheus"
       - "otlpmetrichttp"
       - "otlpmetricgrpc"
-      - "stdouttrace"
+      # - "stdouttrace"
       - "otlptracehttp"
       - "otlptracegrpc"
   prometheus:

@@ -59,6 +59,10 @@ tasks:
       TELEMETRY_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: info
       TZ: UTC
+      # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+      # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
+      # OTEL_METRIC_EXPORT_INTERVAL: "1000" # 1000 = 1 second
+      # OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]

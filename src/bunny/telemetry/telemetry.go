@@ -142,12 +142,12 @@ func configureTelemetry() {
 	for _, exporterName := range telemetryConfig.OpenTelemetry.Exporters {
 		switch exporterName {
 		case "stdoutmetric":
-			exporter, err := stdoutmetric.New()
+			exporter, err := stdoutmetric.New(stdoutmetric.WithEncoder(logging.NewOtelEncoder(logger)))
 			if err != nil {
 				logger.Error("error while creating stdoutmetric exporter", "err", err)
 				continue
 			}
-			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
+			var reader = metric.WithReader(metric.NewPeriodicReader(exporter, metric.WithInterval(1*time.Second)))
 			metricOptions = append(metricOptions, reader)
 		case "prometheus":
 			prometheusExporter, err := prometheus.New(prometheus.WithoutScopeInfo(), prometheus.WithoutTargetInfo())
@@ -174,7 +174,8 @@ func configureTelemetry() {
 			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
 			metricOptions = append(metricOptions, reader)
 		case "stdouttrace":
-			exporter, err := stdouttrace.New()
+			// exporter, err := stdouttrace.New()
+			exporter, err := stdouttrace.New(stdouttrace.WithWriter(logging.NewOtelWriter(logger)))
 			if err != nil {
 				logger.Error("error while creating stdouttrace exporter", "err", err)
 				continue
