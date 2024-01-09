@@ -40,6 +40,13 @@ tasks:
       # LOG_HANDLER: json
       MAIN_LOG_LEVEL: debug
       TZ: UTC
+      # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+      # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
+      # TODO-LOW: doc how if these aren't set, shutdown takes about 10 seconds
+      OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
+      # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)
+      OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:30002/v1/traces"
     cmds:
       - cmd: ./bee-macos
         platforms: [darwin]

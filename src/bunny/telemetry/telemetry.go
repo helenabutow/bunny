@@ -28,7 +28,9 @@ import (
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	otel_not_sdk_metric "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -160,7 +162,6 @@ func configureTelemetry() {
 			var reader = metric.WithReader(metric.NewPeriodicReader(exporter))
 			metricOptions = append(metricOptions, reader)
 		case "stdouttrace":
-			// exporter, err := stdouttrace.New()
 			exporter, err := stdouttrace.New(stdouttrace.WithWriter(logging.NewOtelWriter(logger)))
 			if err != nil {
 				logger.Error("error while creating stdouttrace exporter", "err", err)
@@ -183,6 +184,17 @@ func configureTelemetry() {
 			traceProviderOptions = append(traceProviderOptions, trace.WithBatcher(exporter))
 		}
 	}
+	// set the service name
+	var serviceNameAttribute = attribute.String("service.name", "bunny")
+	var serviceNameResource = resource.NewWithAttributes("", serviceNameAttribute)
+	metricOptions = append(metricOptions, metric.WithResource(serviceNameResource))
+	traceProviderOptions = append(traceProviderOptions, trace.WithResource(serviceNameResource))
+	// make sure that traces are propagated with baggage
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+	// create and register the providers
 	meterProvider = metric.NewMeterProvider(metricOptions...)
 	traceProvider = trace.NewTracerProvider(traceProviderOptions...)
 	// register a global default providers so that any libraries that we depend on have one to use

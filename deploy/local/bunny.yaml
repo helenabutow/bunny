@@ -17,9 +17,9 @@ egress:
         host: "localhost"
         httpHeaders:
           - name: "x-bunny-test-header-name"
-            value: "test-value"
+            value: ["test-value"]
           - name: "x-bunny-test-header-name2"
-            value: "test-value2"
+            value: ["test-value2"]
         port: 2624
         path: "healthz"
       metrics:

@@ -10,6 +10,8 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var logger *slog.Logger = nil
@@ -21,6 +23,7 @@ var initialDelayTime time.Time = time.Now()
 var egressConfig *config.EgressConfig = nil
 var probes []Probe = []Probe{}
 var meter *metric.Meter = nil
+var tracer *trace.Tracer = nil
 
 func GoEgress(wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -76,6 +79,9 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 
 	newMeter := otel.GetMeterProvider().Meter("bunny/egress")
 	meter = &newMeter
+	newTracer := otel.GetTracerProvider().Tracer("bunny/egress")
+	tracer = &newTracer
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	// process probe configs
 	probes = []Probe{}

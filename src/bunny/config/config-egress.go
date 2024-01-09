@@ -28,6 +28,6 @@ type HTTPGetActionConfig struct {
 }
 
 type HTTPHeadersConfig struct {
-	Name  string `yaml:"name"`
-	Value string `yaml:"value"`
+	Name  string   `yaml:"name"`
+	Value []string `yaml:"value"`
 }

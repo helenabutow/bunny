@@ -3,9 +3,13 @@ package egress
 import (
 	"bunny/config"
 	"bunny/telemetry"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // TODO-HIGH: implement performing the other probes
@@ -17,8 +21,9 @@ type Probe struct {
 }
 
 type HTTPGetAction struct {
-	httpProbeRequest *http.Request
-	httpProbeClient  *http.Client
+	headers map[string][]string
+	url     string
+	client  *http.Client
 }
 
 type ProbeAction interface {
@@ -34,7 +39,6 @@ func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration
 	}
 }
 
-// TODO-HIGH: add support for tracing http probes
 func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout time.Duration) *HTTPGetAction {
 	logger.Info("processing http probe config")
 	if httpGetActionConfig == nil {
@@ -46,23 +50,24 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout t
 	}
 	var url string = fmt.Sprintf("http://%s:%d/%s", host, httpGetActionConfig.Port, httpGetActionConfig.Path)
 	logger.Debug("built url", "url", url)
-	newHTTPProbeRequest, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		logger.Error("could not build request for http probe", "err", err)
-		return nil
-	}
-	for _, header := range httpGetActionConfig.HTTPHeaders {
-		newHTTPProbeRequest.Header.Add(header.Name, header.Value)
-	}
+
 	// this seems like the correct timeout based on https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
 	// (see the diagram in the "Client Timeouts" section)
-	newHTTPProbeClient := &http.Client{
-		Timeout: timeout,
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
+
+	// convert the headers into a map now so we don't have to do it later for each request
+	var headers = map[string][]string{}
+	for _, httpHeadersConfig := range httpGetActionConfig.HTTPHeaders {
+		headers[httpHeadersConfig.Name] = httpHeadersConfig.Value
 	}
 
 	return &HTTPGetAction{
-		httpProbeRequest: newHTTPProbeRequest,
-		httpProbeClient:  newHTTPProbeClient,
+		headers: headers,
+		url:     url,
+		client:  client,
 	}
 }
 
@@ -70,13 +75,38 @@ func (action HTTPGetAction) act(attemptsMetric *telemetry.AttemptsMetric, respon
 	logger.Debug("performing http probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
+		// create the span
+		spanContext, span := (*tracer).Start(context.Background(), "http-probe")
+		defer span.End()
+
+		// create the http request
+		// (we have to do it here instead of when creating the HTTPGetAction because we need the context for the span above)
+		var url = action.url
+		newHTTPProbeRequest, err := http.NewRequestWithContext(spanContext, http.MethodGet, url, nil)
+		if err != nil {
+			message := "probe failed - could not build request for http probe"
+			logger.Debug(message)
+			span.SetStatus(codes.Error, message)
+			return
+		}
+		newHTTPProbeRequest.Header = action.headers
+
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
-		response, err := action.httpProbeClient.Do(action.httpProbeRequest)
+		response, err := action.client.Do(newHTTPProbeRequest)
 		telemetry.PostMeasurable(responseTimeMetric, timerStart)
 		if err != nil || response.StatusCode != http.StatusOK {
-			logger.Debug("probe failed")
+			message := ""
+			if response == nil {
+				message = "probe failed - no response"
+			} else {
+				message = fmt.Sprintf("probe failed - http response not ok: %v", response.StatusCode)
+			}
+			logger.Debug(message)
+			span.SetStatus(codes.Error, message)
 		} else {
-			logger.Debug("probe succeeded")
+			message := "probe succeeded"
+			logger.Debug(message)
+			span.SetStatus(codes.Ok, message)
 		}
 	}()
 }
