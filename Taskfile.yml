@@ -61,8 +61,8 @@ tasks:
       # LOG_HANDLER: json
       MAIN_LOG_LEVEL: info
       CONFIG_LOG_LEVEL: info
-      EGRESS_LOG_LEVEL: info
-      INGRESS_LOG_LEVEL: debug
+      EGRESS_LOG_LEVEL: debug
+      INGRESS_LOG_LEVEL: info
       TELEMETRY_LOG_LEVEL: debug
       SIGNALS_LOG_LEVEL: info
       TZ: UTC

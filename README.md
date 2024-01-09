@@ -1,6 +1,10 @@
 # Intro
 
-Bunny is a sidecar proxy for Kubernetes probes. By proxying probes, we can both offer features that Kubernetes does not and make probes more observable.
+Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and make probes more observable.
+
+# Status
+
+Please don't use Bunny in production. Or test it heavily if you do.
 
 # Features
 
