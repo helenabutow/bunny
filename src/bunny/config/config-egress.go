@@ -12,12 +12,18 @@ type EgressConfig struct {
 type EgressProbeConfig struct {
 	Name    string                   `yaml:"name"`
 	Metrics EgressProbeMetricsConfig `yaml:"metrics"`
+	GRPC    *GRPCActionConfig        `yaml:"grpc"`
 	HTTPGet *HTTPGetActionConfig     `yaml:"httpGet"`
 }
 
 type EgressProbeMetricsConfig struct {
 	Attempts     MetricsConfig `yaml:"attempts"`
 	ResponseTime MetricsConfig `yaml:"responseTime"`
+}
+
+type GRPCActionConfig struct {
+	Port    int     `yaml:"port"`
+	Service *string `yaml:"service"`
 }
 
 type HTTPGetActionConfig struct {

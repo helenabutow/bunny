@@ -47,6 +47,8 @@ tasks:
       # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)
       OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:30002/v1/traces"
+      GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
+      GRPC_GO_LOG_SEVERITY_LEVEL: "info"
     cmds:
       - cmd: ./bee-macos
         platforms: [darwin]
@@ -75,6 +77,8 @@ tasks:
       OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
       OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:30001/otlp/v1/metrics"
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:30002/v1/traces"
+      GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
+      GRPC_GO_LOG_SEVERITY_LEVEL: "info"
     cmds:
       - cmd: ./bunny-macos
         platforms: [darwin]

@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -21,11 +23,34 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var logger *slog.Logger = nil
 var httpServer *http.Server = nil
 var tracer *trace.Tracer = nil
+
+func startGRPCEndpoint() {
+	logger.Info("starting gRPC server")
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 3936))
+	if err != nil {
+		logger.Error("could not start gRPC endpoint", err)
+		return
+	}
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
+	healthServer := health.NewServer()
+	healthgrpc.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("health", healthgrpc.HealthCheckResponse_SERVING)
+	go func() {
+		err := grpcServer.Serve(listener)
+		logger.Error("Error while serving gRPC", "err", err)
+	}()
+	logger.Info("done starting gRPC server")
+}
 
 func main() {
 	logger = logging.ConfigureLogger("main")
@@ -51,6 +76,7 @@ func main() {
 	newTracer := otel.GetTracerProvider().Tracer("bunny/egress")
 	tracer = &newTracer
 
+	startGRPCEndpoint()
 	startHTTPEndpoint()
 
 	// wait for OS signal
@@ -98,6 +124,19 @@ func startHTTPEndpoint() {
 func healthEndpoint(response http.ResponseWriter, request *http.Request) {
 	logger.Debug("headers", "request.Header", request.Header)
 
+	childContext, span := (*tracer).Start(request.Context(), "healthEndpoint")
+	defer span.End()
+
+	if checkHealth(childContext) {
+		response.WriteHeader(http.StatusOK)
+		fmt.Fprintln(response, "healthy")
+	} else {
+		response.WriteHeader(http.StatusRequestTimeout)
+		fmt.Fprintln(response, "unhealthy")
+	}
+}
+
+func checkHealth(ctx context.Context) bool {
 	// health is based on a a sine wave
 	const period int64 = 100
 	const maxDelay float64 = 1.0
@@ -112,23 +151,21 @@ func healthEndpoint(response http.ResponseWriter, request *http.Request) {
 		"delay", delay,
 	)
 	var timeToStop = time.Now().Add(delay)
-	timeWaster(request.Context(), timeToStop, "timewaster")
+	timeWaster(ctx, timeToStop, "timeWaster")
 	if y > 0.0 {
 		logger.Debug("healthy")
-		response.WriteHeader(http.StatusOK)
-		fmt.Fprintln(response, "healthy")
+		return true
 	} else {
 		logger.Debug("unhealthy")
-		response.WriteHeader(http.StatusRequestTimeout)
-		fmt.Fprintln(response, "unhealthy")
+		return false
 	}
 }
 
 func timeWaster(parentContext context.Context, timeToStop time.Time, childName string) {
-	childContext, childSpan := (*tracer).Start(parentContext, childName)
-	defer childSpan.End()
+	childContext, span := (*tracer).Start(parentContext, childName)
+	defer span.End()
 
-	logger.Debug("timewaster start", "childName", childName, "timeToStop", timeToStop)
+	logger.Debug("timeWaster start", "childName", childName, "timeToStop", timeToStop)
 
 	var timeAvailableMilliseconds = time.Until(timeToStop).Milliseconds()
 	if timeAvailableMilliseconds <= 10 {
@@ -155,7 +192,7 @@ func timeWaster(parentContext context.Context, timeToStop time.Time, childName s
 }
 
 func makeChildName(parentName string, i int) string {
-	if parentName == "timewaster" {
+	if parentName == "timeWaster" {
 		return fmt.Sprintf("%v-%v", parentName, i)
 	} else {
 		return fmt.Sprintf("%v%v", parentName, i)

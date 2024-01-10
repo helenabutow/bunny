@@ -111,6 +111,9 @@ func performProbes(tickTime *time.Time) {
 		// TODO-HIGH: add the other probes here
 		// for how Kubernetes tests their GRPC probe: https://pkg.go.dev/k8s.io/kubernetes/test/images/agnhost#readme-grpc-health-checking
 		// TODO-MEDIUM: when we implement exec probes, consider adding support for env vars and baking this into the Docker image: https://github.com/equinix-labs/otel-cli#examples
+		if probe.GRPCAction != nil {
+			probe.GRPCAction.act(probe.AttemptsMetric, probe.ResponseTimeMetric)
+		}
 		if probe.HTTPGetAction != nil {
 			probe.HTTPGetAction.act(probe.AttemptsMetric, probe.ResponseTimeMetric)
 		}

@@ -33,25 +33,25 @@ egress:
     #       name: "egress_probe_alpha_response_time"
     #       enabled: true
     #       extraLabels: []
-    - name: "beta"
-      httpGet:
-        host: "localhost"
-        port: 2624
-        path: "healthz"
-      metrics:
-        attempts:
-          name: "egress_probe_beta_attempts"
-          enabled: false
-          extraLabels:
-            - name: "egress_probe_beta_test_label_name"
-              value: "egress_probe_beta_test_label_value"
-        responseTime:
-          name: "egress_probe_beta_response_time"
-          enabled: true
+    # - name: "beta"
+    #   httpGet:
+    #     host: "localhost"
+    #     port: 2624
+    #     path: "healthz"
+    #   metrics:
+    #     attempts:
+    #       name: "egress_probe_beta_attempts"
+    #       enabled: false
+    #       extraLabels:
+    #         - name: "egress_probe_beta_test_label_name"
+    #           value: "egress_probe_beta_test_label_value"
+    #     responseTime:
+    #       name: "egress_probe_beta_response_time"
+    #       enabled: true
     - name: "gamma"
       grpc:
         port: 3936
-        service: "bee"
+        service: "health"
       metrics:
         attempts:
           name: "egress_probe_gamma_attempts"
