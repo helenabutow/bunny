@@ -130,7 +130,7 @@ func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 			logger.Debug("no service set - asking about general rpc server health")
 			response, err = (*action.client).Check(spanContext, nil, opts...)
 		} else {
-			logger.Debug("no service set - asking about health for service " + *action.service)
+			logger.Debug("service set - asking about health for service " + *action.service)
 			healthCheckRequest := healthgrpc.HealthCheckRequest{
 				Service: *action.service,
 			}
