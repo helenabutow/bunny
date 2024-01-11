@@ -37,8 +37,8 @@ func PreMeasurable(attemptsMetric *AttemptsMetric, responseTimeMetric *ResponseT
 	return nil
 }
 
-func PostMeasurable(responseTimeMetric *ResponseTimeMetric, timerStart *time.Time) {
-	if responseTimeMetric != nil {
+func PostMeasurable(responseTimeMetric *ResponseTimeMetric, timerStart *time.Time, success bool) {
+	if responseTimeMetric != nil && success {
 		timerEnd := time.Now()
 		responseTime := timerEnd.Sub(*timerStart)
 

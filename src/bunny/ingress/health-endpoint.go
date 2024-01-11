@@ -32,11 +32,16 @@ type RangeQuery struct {
 	query             string
 }
 
+// TODO-LOW: remove the duplication between the two exec methods. It's kinda gross.
 func (q InstantQuery) exec(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) (bool, error) {
 	instantTime := time.Now().Add(q.relativeInstantTime)
 	timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 	result, err := telemetry.InstantQuery(q.timeout, q.query, instantTime)
-	telemetry.PostMeasurable(responseTimeMetric, timerStart)
+	if err != nil {
+		telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+	} else {
+		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+	}
 	return result, err
 }
 
@@ -45,7 +50,11 @@ func (q RangeQuery) exec(attemptsMetric *telemetry.AttemptsMetric, responseTimeM
 	endTime := time.Now().Add(q.relativeEndTime)
 	timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 	result, err := telemetry.RangeQuery(q.timeout, q.query, startTime, endTime, q.interval)
-	telemetry.PostMeasurable(responseTimeMetric, timerStart)
+	if err != nil {
+		telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+	} else {
+		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+	}
 	return result, err
 }
 

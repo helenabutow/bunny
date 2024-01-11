@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bunny/logging"
 	"context"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -78,6 +80,7 @@ func main() {
 
 	startGRPCEndpoint()
 	startHTTPEndpoint()
+	startTCPEndpoint()
 
 	// wait for OS signal
 	var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
@@ -89,6 +92,95 @@ func main() {
 	logger.Info("received signal", "signal", signal)
 
 	logger.Info("end")
+}
+
+func startTCPEndpoint() {
+	logger.Info("starting TCP server")
+
+	listener, err := net.Listen("tcp", ":5248")
+	if err != nil {
+		logger.Error("Error starting TCP listener", "err", err)
+	}
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				logger.Error("Error accepting TCP connection", "err", err)
+			} else {
+				go handleTCPConnection(&connection)
+			}
+		}
+	}()
+
+	logger.Info("done starting TCP server")
+}
+
+func handleTCPConnection(connection *net.Conn) {
+	logger.Debug("handling tcp connection")
+
+	_, span := (*tracer).Start(context.Background(), "handleTCPConnection")
+	defer span.End()
+
+	defer (*connection).Close()
+	(*connection).SetDeadline(time.Now().Add(time.Duration(10) * time.Second))
+	reader := bufio.NewReader(*connection)
+	writer := bufio.NewWriter(*connection)
+
+	if tcpRead(reader, "hello") &&
+		tcpWrite(writer, "yellow") &&
+		tcpRead(reader, "how're ya now?") &&
+		tcpWrite(writer, "can't complain") {
+		message := "successful tcp conversation"
+		logger.Debug(message)
+		span.SetStatus(codes.Ok, message)
+	} else {
+		message := "failed tcp conversation"
+		logger.Debug(message)
+		span.SetStatus(codes.Error, message)
+	}
+
+	logger.Debug("done handling tcp connection")
+}
+
+func tcpRead(reader *bufio.Reader, words string) bool {
+	logger.Debug("expecting to read", "words", words)
+	wordsSent, err := reader.ReadString('\n')
+	if err != nil {
+		logger.Debug("could not read - error", "err", err)
+		return false
+	}
+	// since the delimiter is included in the response, we include it in the check
+	if (words + "\n") != wordsSent {
+		logger.Debug("could not read - incorrect string", "wordsSent", wordsSent)
+		return false
+	}
+	logger.Debug("read successful")
+	return true
+}
+
+func tcpWrite(writer *bufio.Writer, words string) bool {
+	logger.Debug("expecting to write", "words", words)
+	fullText := words + "\n"
+	for i := 0; i < len(fullText); {
+		remainingWords := fullText[i:]
+		bytesWritten, err := fmt.Fprint(writer, remainingWords)
+		if bytesWritten == 0 {
+			logger.Debug("could not write - no bytes written")
+			return false
+		}
+		if err != nil {
+			logger.Debug("could not write - write error", "err", err)
+			return false
+		}
+		i += bytesWritten
+	}
+	err := writer.Flush()
+	if err != nil {
+		logger.Debug("could not write - flush error", "err", err)
+		return false
+	}
+	logger.Debug("write successful")
+	return true
 }
 
 func startHTTPEndpoint() {
@@ -115,7 +207,7 @@ func startHTTPEndpoint() {
 	go func() {
 		err := httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
-			logger.Error("Error starting or closing listener", "err", err)
+			logger.Error("Error starting or closing http listener", "err", err)
 		}
 	}()
 	logger.Info("done starting HTTP server")

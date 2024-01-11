@@ -118,7 +118,6 @@ func configureTelemetry() {
 	promQueryEngine = promql.NewEngine(queryEngineOpts)
 
 	// setup OpenTelemetry
-	// TODO-HIGH: make this work because otel logs clash with our logs
 	// make OpenTelemetry use our logger
 	logrLogger := logr.FromSlogHandler(logger.Handler())
 	otel.SetLogger(logrLogger)

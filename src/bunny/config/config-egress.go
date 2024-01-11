@@ -10,10 +10,11 @@ type EgressConfig struct {
 }
 
 type EgressProbeConfig struct {
-	Name    string                   `yaml:"name"`
-	Metrics EgressProbeMetricsConfig `yaml:"metrics"`
-	GRPC    *GRPCActionConfig        `yaml:"grpc"`
-	HTTPGet *HTTPGetActionConfig     `yaml:"httpGet"`
+	Name      string                   `yaml:"name"`
+	Metrics   EgressProbeMetricsConfig `yaml:"metrics"`
+	GRPC      *GRPCActionConfig        `yaml:"grpc"`
+	HTTPGet   *HTTPGetActionConfig     `yaml:"httpGet"`
+	TCPSocket *TCPSocketActionConfig   `yaml:"tcpSocket"`
 }
 
 type EgressProbeMetricsConfig struct {
@@ -36,4 +37,25 @@ type HTTPGetActionConfig struct {
 type HTTPHeadersConfig struct {
 	Name  string   `yaml:"name"`
 	Value []string `yaml:"value"`
+}
+
+type TCPSocketActionConfig struct {
+	Port   int             `yaml:"port"`
+	Host   *string         `yaml:"service"`
+	Expect *[]ExpectConfig `yaml:"expect"`
+}
+
+type ExpectConfig struct {
+	Send    *SendStepConfig    `yaml:"send"`
+	Receive *ReceiveStepConfig `yaml:"receive"`
+}
+
+type SendStepConfig struct {
+	Text      string `yaml:"text"`
+	Delimiter string `yaml:"delimiter"`
+}
+
+type ReceiveStepConfig struct {
+	RegEx     string `yaml:"regex"`
+	Delimiter string `yaml:"delimiter"`
 }

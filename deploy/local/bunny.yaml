@@ -48,17 +48,42 @@ egress:
     #     responseTime:
     #       name: "egress_probe_beta_response_time"
     #       enabled: true
-    - name: "gamma"
-      grpc:
-        port: 3936
-        service: "health"
+    # - name: "gamma"
+    #   grpc:
+    #     port: 3936
+    #     service: "health"
+    #   metrics:
+    #     attempts:
+    #       name: "egress_probe_gamma_attempts"
+    #       enabled: true
+    #     responseTime:
+    #       name: "egress_probe_gamma_response_time"
+    #       enabled: true
+    - name: "delta"
+      tcpSocket:
+        host: "localhost"
+        port: 5248
+        expect:
+          - send: 
+              text: "hello"
+              delimiter: "\n"
+          - receive: 
+              regex: "yellow"
+              delimiter: "\n"
+          - send:
+              text: "how're ya now?"
+              delimiter: "\n"
+          - receive:
+              regex: "can.* complain"
+              delimiter: "\n"
       metrics:
         attempts:
-          name: "egress_probe_gamma_attempts"
+          name: "egress_probe_delta_attempts"
           enabled: true
         responseTime:
-          name: "egress_probe_gamma_response_time"
+          name: "egress_probe_delta_response_time"
           enabled: true
+
 ingress:
   httpServer:
     port: 1312
