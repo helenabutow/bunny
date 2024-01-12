@@ -87,7 +87,8 @@ egress:
       exec:
         # command: [ '/bin/bash', '-c', '/bin/echo "Hi ${NICKNAME}!"' ]
         # the "\c" at the end is a different way of making echo not print a newline
-        command: [ '/bin/bash', '-c', '/opt/homebrew/bin/otel-cli exec --name saying-hello-to-bunny /bin/echo "Hi ${NICKNAME}!\c"' ]
+        # command: [ '/bin/bash', '-c', '/opt/homebrew/bin/otel-cli exec --name saying-hello-to-bunny /bin/echo "Hi ${NICKNAME}!\c"' ]
+        command: [ '/bin/bash', '-c', 'exit $(echo "rand() % 2" | bc)' ]
         # command: [ '/bin/bash', '-c', 'export' ]
         # command: [ '/usr/bin/true' ]
         # command: [ '/usr/bin/false' ]
@@ -114,7 +115,10 @@ egress:
           enabled: true
         responseTime:
           name: "egress_probe_epsilon_response_time"
-          enabled: true     
+          enabled: true
+        successes:
+           name: "egress_probe_epsilon_successes"
+           enabled: true
 ingress:
   httpServer:
     port: 1312

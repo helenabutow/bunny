@@ -38,7 +38,7 @@ func newExecAction(execActionConfig *config.ExecActionConfig, timeout time.Durat
 	}
 }
 
-func (action ExecAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action ExecAction) act(probeName string, attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) {
 	logger.Debug("performing exec probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -67,12 +67,12 @@ func (action ExecAction) act(probeName string, attemptsMetric *telemetry.Attempt
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			message := "probe failed - error while running command"
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 			logger.Debug(message, "err", err, "output", string(output))
 			span.SetStatus(codes.Error, message)
 			return
 		}
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 		message := "probe succeeded"
 		logger.Debug(message, "cmd.Path", cmd.Path, "cmd.Args", cmd.Args, "output", string(output))
 		span.SetStatus(codes.Ok, message)

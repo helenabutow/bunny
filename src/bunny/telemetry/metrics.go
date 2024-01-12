@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type AttemptsMetric struct {
+type CounterMetric struct {
 	OtelCounter         *metric.Int64Counter
 	OtelExtraAttributes metric.MeasurementOption
 	PromCounter         client_golang_prometheus.Counter
@@ -24,7 +24,7 @@ type ResponseTimeMetric struct {
 	PromGauge           client_golang_prometheus.Gauge
 }
 
-func PreMeasurable(attemptsMetric *AttemptsMetric, responseTimeMetric *ResponseTimeMetric) *time.Time {
+func PreMeasurable(attemptsMetric *CounterMetric, responseTimeMetric *ResponseTimeMetric) *time.Time {
 	if attemptsMetric != nil {
 		counter := attemptsMetric.OtelCounter
 		(*counter).Add(context.Background(), 1, attemptsMetric.OtelExtraAttributes)
@@ -37,8 +37,11 @@ func PreMeasurable(attemptsMetric *AttemptsMetric, responseTimeMetric *ResponseT
 	return nil
 }
 
-func PostMeasurable(responseTimeMetric *ResponseTimeMetric, timerStart *time.Time, success bool) {
-	if responseTimeMetric != nil && success {
+func PostMeasurable(successesMetric *CounterMetric, responseTimeMetric *ResponseTimeMetric, timerStart *time.Time, success bool) {
+	if !success {
+		return
+	}
+	if responseTimeMetric != nil {
 		timerEnd := time.Now()
 		responseTime := timerEnd.Sub(*timerStart)
 
@@ -49,17 +52,22 @@ func PostMeasurable(responseTimeMetric *ResponseTimeMetric, timerStart *time.Tim
 		// unlike with OpenTelemetry, we can append the value to the Prometheus TSDB immediately
 		responseTimeMetric.PromGauge.Set(float64(responseTime.Milliseconds()))
 	}
+	if successesMetric != nil {
+		counter := successesMetric.OtelCounter
+		(*counter).Add(context.Background(), 1, successesMetric.OtelExtraAttributes)
+		successesMetric.PromCounter.Inc()
+	}
 }
 
-func NewAttemptsMetric(metricsConfig *config.MetricsConfig, meter *metric.Meter) *AttemptsMetric {
+func NewCounterMetric(metricsConfig *config.MetricsConfig, meter *metric.Meter) *CounterMetric {
 	if !metricsConfig.Enabled {
 		return nil
 	}
 
 	var metricName string = metricsConfig.Name
-	newAttemptsCounter, err := (*meter).Int64Counter("otel_" + metricName)
+	newCounter, err := (*meter).Int64Counter("otel_" + metricName)
 	if err != nil {
-		logger.Error("could not create newAttemptsCounter", "err", err)
+		logger.Error("could not create Int64Counter", "err", err)
 		return nil
 	}
 
@@ -71,8 +79,8 @@ func NewAttemptsMetric(metricsConfig *config.MetricsConfig, meter *metric.Meter)
 	PromRegistry.Unregister(newPromCounter)
 	PromRegistry.MustRegister(newPromCounter)
 
-	return &AttemptsMetric{
-		OtelCounter:         &newAttemptsCounter,
+	return &CounterMetric{
+		OtelCounter:         &newCounter,
 		OtelExtraAttributes: NewAttributes(metricsConfig.ExtraLabels),
 		PromCounter:         newPromCounter,
 	}

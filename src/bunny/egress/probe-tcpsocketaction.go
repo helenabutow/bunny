@@ -49,7 +49,7 @@ func newTCPSocketAction(tcpSocketActionConfig *config.TCPSocketActionConfig, tim
 	}
 }
 
-func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) {
 	logger.Debug("performing tcp socket probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -70,14 +70,13 @@ func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.At
 		if action.host != "" {
 			host = action.host
 		}
-		// TODO-HIGH: we need a "successfulAttempts" metric
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 		var target = net.JoinHostPort(host, fmt.Sprintf("%v", action.port))
 		timeoutDuration := time.Until(timeoutTime)
 		tcpConnection, err := net.DialTimeout("tcp", target, timeoutDuration)
 		if err != nil {
 			message := "probe failed - could not connect to tcp server"
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 			logger.Debug(message, "target", target, "err", err)
 			span.SetStatus(codes.Error, message)
 			return
@@ -86,7 +85,7 @@ func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.At
 		tcpConnection.SetDeadline(timeoutTime)
 		// check the expect steps
 		expectSuccess := expect(&tcpConnection, action.expectSteps, &span)
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, expectSuccess)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, expectSuccess)
 		// thanks motivational code
 		if !expectSuccess {
 			message := "probe failed - expect steps failed"

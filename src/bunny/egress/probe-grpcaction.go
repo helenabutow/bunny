@@ -35,7 +35,7 @@ func newGRPCAction(grpcActionConfig *config.GRPCActionConfig, timeout time.Durat
 	}
 }
 
-func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) {
 	logger.Debug("performing grpc probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -66,7 +66,7 @@ func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.Attempt
 		)
 		if err != nil {
 			logger.Error("error while creating grpc client and connecting to server", "err", err)
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 			return
 		}
 		defer conn.Close()
@@ -92,12 +92,12 @@ func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.Attempt
 			message = "probe failed - rpc server is not serving"
 		}
 		if message != "" {
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 			logger.Debug(message, "response.GetStatus()", response.GetStatus())
 			span.SetStatus(codes.Error, message)
 			return
 		}
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 		message = "probe succeeded"
 		logger.Debug(message)
 		span.SetStatus(codes.Ok, message)

@@ -8,13 +8,14 @@ import (
 
 type Probe struct {
 	Name               string
-	AttemptsMetric     *telemetry.AttemptsMetric
+	AttemptsMetric     *telemetry.CounterMetric
 	ResponseTimeMetric *telemetry.ResponseTimeMetric
+	SuccessesMetric    *telemetry.CounterMetric
 	ProbeAction        *ProbeAction
 }
 
 type ProbeAction interface {
-	act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
+	act(probeName string, attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric)
 }
 
 func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration) *Probe {
@@ -37,8 +38,9 @@ func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration
 	}
 	return &Probe{
 		Name:               egressProbeConfig.Name,
-		AttemptsMetric:     telemetry.NewAttemptsMetric(&egressProbeConfig.Metrics.Attempts, meter),
+		AttemptsMetric:     telemetry.NewCounterMetric(&egressProbeConfig.Metrics.Attempts, meter),
 		ResponseTimeMetric: telemetry.NewResponseTimeMetric(&egressProbeConfig.Metrics.ResponseTime, meter),
+		SuccessesMetric:    telemetry.NewCounterMetric(&egressProbeConfig.Metrics.Successes, meter),
 		ProbeAction:        &probeAction,
 	}
 }

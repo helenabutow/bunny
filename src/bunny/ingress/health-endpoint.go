@@ -10,12 +10,13 @@ import (
 type HealthEndpoint struct {
 	Path               string
 	Query              *Query
-	AttemptsMetric     *telemetry.AttemptsMetric
+	AttemptsMetric     *telemetry.CounterMetric
 	ResponseTimeMetric *telemetry.ResponseTimeMetric
+	SuccessesMetric    *telemetry.CounterMetric
 }
 
 type Query interface {
-	exec(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) (bool, error)
+	exec(attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) (bool, error)
 }
 
 type InstantQuery struct {
@@ -33,27 +34,27 @@ type RangeQuery struct {
 }
 
 // TODO-LOW: remove the duplication between the two exec methods. It's kinda gross.
-func (q InstantQuery) exec(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) (bool, error) {
+func (q InstantQuery) exec(attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) (bool, error) {
 	instantTime := time.Now().Add(q.relativeInstantTime)
 	timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 	result, err := telemetry.InstantQuery(q.timeout, q.query, instantTime)
 	if err != nil {
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 	} else {
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 	}
 	return result, err
 }
 
-func (q RangeQuery) exec(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) (bool, error) {
+func (q RangeQuery) exec(attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) (bool, error) {
 	startTime := time.Now().Add(q.relativeStartTime)
 	endTime := time.Now().Add(q.relativeEndTime)
 	timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 	result, err := telemetry.RangeQuery(q.timeout, q.query, startTime, endTime, q.interval)
 	if err != nil {
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 	} else {
-		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 	}
 	return result, err
 }
@@ -76,8 +77,9 @@ func newHealthEndpoint(healthConfig *config.HealthConfig) (*HealthEndpoint, erro
 	return &HealthEndpoint{
 		Path:               ensureLeadingSlash(healthConfig.Path),
 		Query:              &query,
-		AttemptsMetric:     telemetry.NewAttemptsMetric(&healthConfig.Metrics.Attempts, meter),
+		AttemptsMetric:     telemetry.NewCounterMetric(&healthConfig.Metrics.Attempts, meter),
 		ResponseTimeMetric: telemetry.NewResponseTimeMetric(&healthConfig.Metrics.ResponseTime, meter),
+		SuccessesMetric:    telemetry.NewCounterMetric(&healthConfig.Metrics.Successes, meter),
 	}, err
 }
 

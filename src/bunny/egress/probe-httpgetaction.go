@@ -53,7 +53,7 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout t
 	}
 }
 
-func (action HTTPGetAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action HTTPGetAction) act(probeName string, attemptsMetric *telemetry.CounterMetric, responseTimeMetric *telemetry.ResponseTimeMetric, successesMetric *telemetry.CounterMetric) {
 	logger.Debug("performing http probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -85,7 +85,7 @@ func (action HTTPGetAction) act(probeName string, attemptsMetric *telemetry.Atte
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 		response, err := action.client.Do(newHTTPProbeRequest)
 		if err != nil || response.StatusCode != http.StatusOK {
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)
 			message := ""
 			if response == nil {
 				message = "probe failed - no response"
@@ -95,7 +95,7 @@ func (action HTTPGetAction) act(probeName string, attemptsMetric *telemetry.Atte
 			logger.Debug(message)
 			span.SetStatus(codes.Error, message)
 		} else {
-			telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 			message := "probe succeeded"
 			logger.Debug(message)
 			span.SetStatus(codes.Ok, message)

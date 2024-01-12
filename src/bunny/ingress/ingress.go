@@ -148,7 +148,7 @@ func healthEndpointHandler(w http.ResponseWriter, req *http.Request) {
 	for _, healthEndpoint := range healthEndpoints {
 		if healthEndpoint.Path == req.URL.Path {
 			logger.Debug("execing query", "healthEndpoint", healthEndpoint)
-			queryResult, err := (*healthEndpoint.Query).exec(healthEndpoint.AttemptsMetric, healthEndpoint.ResponseTimeMetric)
+			queryResult, err := (*healthEndpoint.Query).exec(healthEndpoint.AttemptsMetric, healthEndpoint.ResponseTimeMetric, healthEndpoint.SuccessesMetric)
 			if err != nil {
 				logger.Error("error while executing query for health endpoint",
 					"healthEndpoint", healthEndpoint,

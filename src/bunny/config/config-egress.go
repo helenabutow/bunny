@@ -19,6 +19,7 @@ type EgressProbeConfig struct {
 type EgressProbeMetricsConfig struct {
 	Attempts     MetricsConfig `yaml:"attempts"`
 	ResponseTime MetricsConfig `yaml:"responseTime"`
+	Successes    MetricsConfig `yaml:"successes"`
 }
 
 type ExecActionConfig struct {

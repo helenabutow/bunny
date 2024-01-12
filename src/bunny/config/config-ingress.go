@@ -40,4 +40,5 @@ type RangeQueryConfig struct {
 type IngressHealthEndpointMetricsConfig struct {
 	Attempts     MetricsConfig `yaml:"attempts"`
 	ResponseTime MetricsConfig `yaml:"responseTime"`
+	Successes    MetricsConfig `yaml:"successes"`
 }
