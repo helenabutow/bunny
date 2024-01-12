@@ -110,7 +110,7 @@ func performProbes(tickTime *time.Time) {
 	for _, probe := range probes {
 		if probe.ProbeAction != nil {
 			probeAction := *probe.ProbeAction
-			probeAction.act(probe.AttemptsMetric, probe.ResponseTimeMetric)
+			probeAction.act(probe.Name, probe.AttemptsMetric, probe.ResponseTimeMetric)
 		}
 	}
 }

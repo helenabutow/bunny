@@ -12,6 +12,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -53,7 +54,7 @@ type TCPSocketAction struct {
 }
 
 type ProbeAction interface {
-	act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
+	act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
 }
 
 // TODO-MEDIUM: when we implement exec probes, consider adding support for env vars and baking this into the Docker image: https://github.com/equinix-labs/otel-cli#examples
@@ -179,7 +180,7 @@ func newTCPSocketAction(tcpSocketActionConfig *config.TCPSocketActionConfig, tim
 	}
 }
 
-func (action ExecAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action ExecAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
 	logger.Debug("performing exec probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -188,9 +189,11 @@ func (action ExecAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 		defer timeoutContextCancelFunc()
 
 		// create the span
-		// TODO-HIGH: we need to include the probe name (from bunny.yaml) somehow (maybe as an attribute of some sort?)
-		// do this for the http probe as well
 		spanContext, span := (*tracer).Start(timeoutContext, "exec-probe")
+		span.SetAttributes(attribute.KeyValue{
+			Key:   "bunny-probe-name",
+			Value: attribute.StringValue(probeName),
+		})
 		defer span.End()
 
 		// setup the environment variables
@@ -218,7 +221,7 @@ func (action ExecAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 	}()
 }
 
-func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
 	logger.Debug("performing grpc probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -227,9 +230,11 @@ func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 		defer timeoutContextCancelFunc()
 
 		// create the span
-		// TODO-HIGH: we need to include the probe name (from bunny.yaml) somehow (maybe as an attribute of some sort?)
-		// do this for the http probe as well
 		spanContext, span := (*tracer).Start(timeoutContext, "grpc-probe")
+		span.SetAttributes(attribute.KeyValue{
+			Key:   "bunny-probe-name",
+			Value: attribute.StringValue(probeName),
+		})
 		defer span.End()
 
 		// check the grpc server
@@ -285,7 +290,7 @@ func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 	}()
 }
 
-func (action HTTPGetAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action HTTPGetAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
 	logger.Debug("performing http probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -295,6 +300,10 @@ func (action HTTPGetAction) act(attemptsMetric *telemetry.AttemptsMetric, respon
 
 		// create the span
 		spanContext, span := (*tracer).Start(timeoutContext, "http-probe")
+		span.SetAttributes(attribute.KeyValue{
+			Key:   "bunny-probe-name",
+			Value: attribute.StringValue(probeName),
+		})
 		defer span.End()
 
 		// create the http request
@@ -331,7 +340,7 @@ func (action HTTPGetAction) act(attemptsMetric *telemetry.AttemptsMetric, respon
 	}()
 }
 
-func (action TCPSocketAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
 	logger.Debug("performing tcp socket probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
 	go func() {
@@ -340,9 +349,11 @@ func (action TCPSocketAction) act(attemptsMetric *telemetry.AttemptsMetric, resp
 		defer timeoutContextCancelFunc()
 
 		// create the span
-		// TODO-HIGH: we need to include the probe name (from bunny.yaml) somehow (maybe as an attribute of some sort?)
-		// do this for the http probe as well
 		_, span := (*tracer).Start(timeoutContext, "tcp-socket-probe")
+		span.SetAttributes(attribute.KeyValue{
+			Key:   "bunny-probe-name",
+			Value: attribute.StringValue(probeName),
+		})
 		defer span.End()
 
 		// connect to the tcp server
