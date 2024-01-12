@@ -57,7 +57,6 @@ type ProbeAction interface {
 	act(probeName string, attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
 }
 
-// TODO-MEDIUM: when we implement exec probes, consider adding support for env vars and baking this into the Docker image: https://github.com/equinix-labs/otel-cli#examples
 func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration) *Probe {
 	var probeAction ProbeAction = nil
 	var execAction *ExecAction = newExecAction(egressProbeConfig.Exec, timeout)

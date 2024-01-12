@@ -1,7 +1,5 @@
 package config
 
-// TODO-LOW: add support for GRPC, TCP, and exec probes
-// TODO-LOW: when we implement exec probes, do we want to wrap it in https://github.com/equinix-labs/otel-cli ?
 type EgressConfig struct {
 	Probes                   []EgressProbeConfig `yaml:"probes"`
 	InitialDelayMilliseconds int                 `yaml:"initialDelayMilliseconds"`
