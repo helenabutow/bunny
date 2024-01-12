@@ -12,6 +12,7 @@ type EgressConfig struct {
 type EgressProbeConfig struct {
 	Name      string                   `yaml:"name"`
 	Metrics   EgressProbeMetricsConfig `yaml:"metrics"`
+	Exec      *ExecActionConfig        `yaml:"exec"`
 	GRPC      *GRPCActionConfig        `yaml:"grpc"`
 	HTTPGet   *HTTPGetActionConfig     `yaml:"httpGet"`
 	TCPSocket *TCPSocketActionConfig   `yaml:"tcpSocket"`
@@ -20,6 +21,16 @@ type EgressProbeConfig struct {
 type EgressProbeMetricsConfig struct {
 	Attempts     MetricsConfig `yaml:"attempts"`
 	ResponseTime MetricsConfig `yaml:"responseTime"`
+}
+
+type ExecActionConfig struct {
+	Command []string    `yaml:"command"`
+	Env     []EnvConfig `yaml:"env"`
+}
+
+type EnvConfig struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
 }
 
 type GRPCActionConfig struct {

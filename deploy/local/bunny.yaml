@@ -59,31 +59,62 @@ egress:
     #     responseTime:
     #       name: "egress_probe_gamma_response_time"
     #       enabled: true
-    - name: "delta"
-      tcpSocket:
-        host: "localhost"
-        port: 5248
-        expect:
-          - send: 
-              text: "hello"
-              delimiter: "\n"
-          - receive: 
-              regex: "yellow"
-              delimiter: "\n"
-          - send:
-              text: "how're ya now?"
-              delimiter: "\n"
-          - receive:
-              regex: "can.* complain"
-              delimiter: "\n"
+    # - name: "delta"
+    #   tcpSocket:
+    #     host: "localhost"
+    #     port: 5248
+    #     expect:
+    #       - send: 
+    #           text: "hello"
+    #           delimiter: "\n"
+    #       - receive: 
+    #           regex: "yellow"
+    #           delimiter: "\n"
+    #       - send:
+    #           text: "how're ya now?"
+    #           delimiter: "\n"
+    #       - receive:
+    #           regex: "can.* complain"
+    #           delimiter: "\n"
+    #   metrics:
+    #     attempts:
+    #       name: "egress_probe_delta_attempts"
+    #       enabled: true
+    #     responseTime:
+    #       name: "egress_probe_delta_response_time"
+    #       enabled: true
+    - name: "epsilon"
+      exec:
+        # command: [ '/bin/bash', '-c', '/bin/echo "Hi ${NICKNAME}!"' ]
+        # the "\c" at the end is a different way of making echo not print a newline
+        command: [ '/bin/bash', '-c', '/opt/homebrew/bin/otel-cli exec --name saying-hello-to-bunny /bin/echo "Hi ${NICKNAME}!\c"' ]
+        # command: [ '/bin/bash', '-c', 'export' ]
+        # command: [ '/usr/bin/true' ]
+        # command: [ '/usr/bin/false' ]
+        env:
+          - name: "NICKNAME"
+            value: "Bun Bun"
+          - name: "OTEL_EXPORTER_OTLP_TIMEOUT"
+            value: "1000" # 1000 = 1 second
+          - name: "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value: "http/protobuf"
+          # please don't do this - use certs if you can
+          - name: "OTEL_EXPORTER_OTLP_INSECURE"
+            value: "true"
+          # this is the Grafana instance that we run locally
+          # (see the "install-grafana" and related tasks in Taskfile.yml)
+          # you'll likely want to change this to point to whatever OpenTelemetry service you're using
+          - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+            value: "http://localhost:30002/v1/traces"
+          - name: "OTEL_CLI_VERBOSE"
+            value: "true"
       metrics:
         attempts:
-          name: "egress_probe_delta_attempts"
+          name: "egress_probe_epsilon_attempts"
           enabled: true
         responseTime:
-          name: "egress_probe_delta_response_time"
-          enabled: true
-
+          name: "egress_probe_epsilon_response_time"
+          enabled: true     
 ingress:
   httpServer:
     port: 1312

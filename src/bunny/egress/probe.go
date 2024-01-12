@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -17,7 +18,6 @@ import (
 	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// TODO-HIGH: implement performing the other probes
 type Probe struct {
 	Name               string
 	AttemptsMetric     *telemetry.AttemptsMetric
@@ -26,6 +26,12 @@ type Probe struct {
 }
 
 // TODO-MEDIUM: put the probe actions into separate files (to make things easier to find)
+type ExecAction struct {
+	command []string
+	env     []string
+	timeout time.Duration
+}
+
 type GRPCAction struct {
 	port    int
 	service *string
@@ -50,15 +56,16 @@ type ProbeAction interface {
 	act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric)
 }
 
-// TODO-HIGH: add the other probes here
-// for how Kubernetes tests their GRPC probe: https://pkg.go.dev/k8s.io/kubernetes/test/images/agnhost#readme-grpc-health-checking
 // TODO-MEDIUM: when we implement exec probes, consider adding support for env vars and baking this into the Docker image: https://github.com/equinix-labs/otel-cli#examples
 func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration) *Probe {
 	var probeAction ProbeAction = nil
+	var execAction *ExecAction = newExecAction(egressProbeConfig.Exec, timeout)
 	var grpcAction *GRPCAction = newGRPCAction(egressProbeConfig.GRPC, timeout)
 	var httpGetAction *HTTPGetAction = newHTTPGetAction(egressProbeConfig.HTTPGet, timeout)
 	var tcpSocketAction *TCPSocketAction = newTCPSocketAction(egressProbeConfig.TCPSocket, timeout)
-	if grpcAction != nil {
+	if execAction != nil {
+		probeAction = execAction
+	} else if grpcAction != nil {
 		probeAction = grpcAction
 	} else if httpGetAction != nil {
 		probeAction = httpGetAction
@@ -73,6 +80,26 @@ func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration
 		AttemptsMetric:     telemetry.NewAttemptsMetric(&egressProbeConfig.Metrics.Attempts, meter),
 		ResponseTimeMetric: telemetry.NewResponseTimeMetric(&egressProbeConfig.Metrics.ResponseTime, meter),
 		ProbeAction:        &probeAction,
+	}
+}
+
+func newExecAction(execActionConfig *config.ExecActionConfig, timeout time.Duration) *ExecAction {
+	logger.Info("processing exec probe config")
+	if execActionConfig == nil {
+		return nil
+	}
+
+	// yes, this looks a bit strange but it's what exec.Cmd.Env needs
+	envSlice := []string{}
+	for _, envConfig := range execActionConfig.Env {
+		envSliceItem := fmt.Sprintf("%v=%v", envConfig.Name, envConfig.Value)
+		envSlice = append(envSlice, envSliceItem)
+	}
+
+	return &ExecAction{
+		command: execActionConfig.Command,
+		env:     envSlice,
+		timeout: timeout,
 	}
 }
 
@@ -152,6 +179,45 @@ func newTCPSocketAction(tcpSocketActionConfig *config.TCPSocketActionConfig, tim
 	}
 }
 
+func (action ExecAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
+	logger.Debug("performing exec probe")
+	// need to run this on a separate goroutine since the timeout could be greater than the period
+	go func() {
+		timeoutTime := time.Now().Add(action.timeout)
+		timeoutContext, timeoutContextCancelFunc := context.WithDeadlineCause(context.Background(), timeoutTime, context.DeadlineExceeded)
+		defer timeoutContextCancelFunc()
+
+		// create the span
+		// TODO-HIGH: we need to include the probe name (from bunny.yaml) somehow (maybe as an attribute of some sort?)
+		// do this for the http probe as well
+		spanContext, span := (*tracer).Start(timeoutContext, "exec-probe")
+		defer span.End()
+
+		// setup the environment variables
+		// get the trace id (so that we can pass it to otel-cli)
+		traceID := span.SpanContext().TraceID()
+		tranceParent := "OTEL_CLI_FORCE_TRACE_ID=" + traceID.String()
+		newEnvVars := append(action.env, tranceParent)
+
+		// run the program
+		cmd := exec.CommandContext(spanContext, action.command[0], action.command[1:]...)
+		cmd.Env = newEnvVars
+		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			message := "probe failed - error while running command"
+			telemetry.PostMeasurable(responseTimeMetric, timerStart, false)
+			logger.Debug(message, "err", err, "output", string(output))
+			span.SetStatus(codes.Error, message)
+			return
+		}
+		telemetry.PostMeasurable(responseTimeMetric, timerStart, true)
+		message := "probe succeeded"
+		logger.Debug(message, "cmd.Path", cmd.Path, "cmd.Args", cmd.Args, "output", string(output))
+		span.SetStatus(codes.Ok, message)
+	}()
+}
+
 func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseTimeMetric *telemetry.ResponseTimeMetric) {
 	logger.Debug("performing grpc probe")
 	// need to run this on a separate goroutine since the timeout could be greater than the period
@@ -201,11 +267,9 @@ func (action GRPCAction) act(attemptsMetric *telemetry.AttemptsMetric, responseT
 		message := ""
 		if err != nil {
 			message = "probe failed - could not check grpc server"
-		}
-		if response == nil {
+		} else if response == nil {
 			message = "probe failed - response is nil"
-		}
-		if response.GetStatus() != healthgrpc.HealthCheckResponse_SERVING {
+		} else if response.GetStatus() != healthgrpc.HealthCheckResponse_SERVING {
 			message = "probe failed - rpc server is not serving"
 		}
 		if message != "" {
