@@ -5,7 +5,7 @@ Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and trans
 # Status
 
 Please don't use Bunny in production. Or test it heavily if you do.
-
+<!-- TODO-MEDIUM: add an acknowledgements section (for otel-cli, OpenTelemetry, Prometheus, and the dev log formatting package that we use) -->
 # Features
 
 <!-- TODO-LOW: update the feature list -->

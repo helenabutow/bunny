@@ -7,33 +7,54 @@ tasks:
 # top level task targets
 
   build-bee:
-    sources:
-      - "{{.ROOT_DIR}}/src/bee/**/*.go"
-    generates:
-      - bee-macos
-      - bee-linux
-    dir: "{{.ROOT_DIR}}/src/bee/"
     cmds:
-      # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bee-macos ./
-      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bee-macos" ./
-      # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bee-linux ./
-      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bee-linux" ./
+      - task: build-binary
+        vars: 
+          BINARY_NAME: 'bee'
 
   build-bunny:
-    sources:
-      - "{{.ROOT_DIR}}/src/bunny/**/*.go"
-    generates:
-      - bunny-macos
-      - bunny-linux
-    dir: "{{.ROOT_DIR}}/src/bunny/"
     cmds:
-      # - CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-macos ./
-      - CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bunny-macos" ./
-      # - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -gcflags="all=-N -l" -o bunny-linux ./
-      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/bunny-linux" ./
+      - task: build-binary
+        vars:
+          BINARY_NAME: 'bunny'
+
+  build-binary:
+    cmds:
+      - for: [ 'darwin', 'linux' ]
+        task: build-binary-for-goos
+        vars:
+          BINARY_NAME: "{{.BINARY_NAME}}"
+          GOOS: "{{.ITEM}}"
+
+  build-binary-for-goos:
+    cmds:
+      - for: [ 'arm64', 'amd64' ]
+        task: build-binary-for-goos-and-goarch
+        vars:
+          BINARY_NAME: "{{.BINARY_NAME}}"
+          GOOS: "{{.GOOS}}"
+          GOARCH: "{{.ITEM}}"
+
+  build-binary-for-goos-and-goarch:
+    sources:
+      - "{{.ROOT_DIR}}/src/{{.BINARY_NAME}}/**/*.go"
+    generates:
+      - "{{.BINARY_NAME}}-{{.GOOS}}-{{.GOARCH}}"
+    dir: "{{.ROOT_DIR}}/src/{{.BINARY_NAME}}/"
+    env:
+      CGO_ENABLED: "0"
+      GOOS: "{{.GOOS}}"
+      GOARCH: "{{.GOARCH}}"
+    cmds:
+      - go build -gcflags="all=-N -l" -o "{{.ROOT_DIR}}/{{.BINARY_NAME}}-{{.GOOS}}-{{.GOARCH}}" ./
 
   run-bee:
     deps: [build-bee]
+    vars:
+      GOOS:
+        sh: go env GOOS
+      GOARCH:
+        sh: go env GOARCH
     env:
       BEE_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bee.yaml"
       LOG_HANDLER: text
@@ -50,13 +71,15 @@ tasks:
       GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
       GRPC_GO_LOG_SEVERITY_LEVEL: "info"
     cmds:
-      - cmd: ./bee-macos
-        platforms: [darwin]
-      - cmd: ./bee-linux
-        platforms: [linux]
+      - cmd: "./bee-{{.GOOS}}-{{.GOARCH}}"
 
   run-bunny:
     deps: [build-bunny]
+    vars:
+      GOOS:
+        sh: go env GOOS
+      GOARCH:
+        sh: go env GOARCH
     env:
       BUNNY_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bunny.yaml"
       LOG_HANDLER: text
@@ -80,24 +103,34 @@ tasks:
       GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
       GRPC_GO_LOG_SEVERITY_LEVEL: "info"
     cmds:
-      - cmd: ./bunny-macos
-        platforms: [darwin]
-      - cmd: ./bunny-linux
-        platforms: [linux]
+      - cmd: "./bunny-{{.GOOS}}-{{.GOARCH}}"
 
+  build-bee-docker-image:
+    deps: [ build-bee ]
+    cmds:
+      - for: [ 'arm64', 'amd64' ]
+        task: build-docker-image
+        vars:
+          BINARY_NAME: 'bee'
+          GOARCH: "{{.ITEM}}"
+
+  build-bunny-docker-image:
+    deps: [ build-bunny ]
+    cmds:
+      - for: [ 'arm64', 'amd64' ]
+        task: build-docker-image
+        vars:
+          BINARY_NAME: 'bunny'
+          GOARCH: "{{.ITEM}}"
 
   build-docker-image:
-    deps: [build-bunny, configure-docker]
-    sources:
-      - "{{.ROOT_DIR}}/bunny-linux"
-      - "{{.ROOT_DIR}}/deploy/containers/bunny/Dockerfile"
-    status:
-      - docker image inspect bunny:latest
-    dir: ./deploy/containers/bunny/
+    deps: [ configure-docker ]
+    dir: ./deploy/containers/{{.BINARY_NAME}}/
     cmds:
-      - cp "{{.ROOT_DIR}}/bunny-linux" "{{.ROOT_DIR}}/deploy/containers/bunny/bunny"
-      - defer: rm "{{.ROOT_DIR}}/deploy/containers/bunny/bunny"
-      - docker build -t bunny .
+      - task: build-{{.BINARY_NAME}}
+      - cp "{{.ROOT_DIR}}/{{.BINARY_NAME}}-linux-{{.GOARCH}}" "{{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}"
+      - defer: rm {{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}-linux-*
+      - docker build -t {{.BINARY_NAME}}:latest-{{.GOARCH}} .
 
   # this is a little hack-ish as there's no way to set memory in docker-desktop.yaml
   # and it isn't returned when getting the cluster JSON

@@ -1,8 +1,12 @@
 # binaries that we build
-bee-linux
-bee-macos
-bunny-linux
-bunny-macos
+bee-darwin-amd64
+bee-darwin-arm64
+bee-linux-amd64
+bee-linux-arm64
+bunny-darwin-amd64
+bunny-darwin-arm64
+bunny-linux-amd64
+bunny-linux-arm64
 
 # things that tooling creates
 .task

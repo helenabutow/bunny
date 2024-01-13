@@ -130,6 +130,10 @@ func GoConfig(wg *sync.WaitGroup) {
 				configFileHash = newConfigFileHash
 				// show the config being used
 				logConfigBeingUsed()
+
+				// TODO-HIGH: add the ability to do a random delay before consuming the updated config
+				// this should support a range (e.g. "5s", "15m", "4h", "2d")
+
 				// notify of config change via channel
 				for _, configUpdateChannel := range configUpdateChannels {
 					configUpdateChannel <- *bunnyConfig
