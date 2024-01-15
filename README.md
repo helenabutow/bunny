@@ -1,6 +1,6 @@
 # Intro
 
-Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and make probes more observable.
+Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and improve those that already exist.
 
 # Status
 
@@ -12,14 +12,15 @@ Please don't use Bunny in production. Or test it heavily if you do.
 A (likely incomplete) feature list:
 
 * config:
-    * Reconfiguration without redeploying Pods
+    * Reconfiguration without redeploying Pods via ionotify
 * ingress:
 * egress:
+    * Performs HTTP GET, GRPC, TCP, and Exec probes
 * logging:
     * JSON or console formatted logs
     * different log levels for each component of Bunny (e.g. ingress and egress related code can have different logging levels)
 * telemetry:
-    * support for Prometheus (for metrics) and OTLP endpoints (for traces)
+    * support for Prometheus (for scraping metrics) and OTLP endpoints (for pushing metrics and traces)
     * extensible to other metrics and trace systems which OpenTelemetry supports
 * signals:
     * waits for all processes with a given name to exit before shutting down (to ensure that all probes are handled until the app process exits)
@@ -27,9 +28,13 @@ A (likely incomplete) feature list:
 # Use Cases
 
 <!-- TODO-LOW: list more use cases -->
-* SRE tweaking readiness probes during regional off-hours to support lower SLOs leading to cost savings 
+* SRE tweaking readiness probes during regional off-hours to lower cost
+    * Technically, this can be done already by updating the configuration of the Pod but that requires a rolling update of all the Pods in the Deployment (which could take minutes to hours). Bunny avoids this.
 * Performance confidently tweaking probes to ensure that provisioned Pod capacity is utilized
-* Engineering using traces to understand which downstream components most often cause probe failure
+* On-call engineers using tracing to more quickly understand readiness and liveness probe failure during an outage.
+* Engineering leadership using traces to understand which downstream components most often increase the risk of failure leading to more informed decision making about where to focus engineering resources
+* SRE using Prometheus' linear prediction to more proactively reject traffic and apply backpressure
+* Engineering running probes more often (than Kubernetes allows), collecting more samples, and so getting a better representation of the failure rate of the service.
 
 # Alternatives
 
@@ -39,7 +44,7 @@ Some of the functionality of Bunny could be recreated using different tools or p
 
 # Deployment
 
-Bunny runs as a sidecar container within the same Pod as your app's container.
+Bunny runs as a sidecar container within the same Pod as your app's container. Configuration is mostly via a YAML file (with the remainder via environment variables). Bunny detects changes to the YAML file and automatically reconfigures itself.
 
 # Example
 

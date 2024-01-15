@@ -10,4 +10,6 @@ bunny-linux-arm64
 
 # things that tooling creates
 .task
+deploy/containers/bunny/bunny
+deploy/containers/bee/bee
 deploy/kubernetes/bunny.telepresence-env

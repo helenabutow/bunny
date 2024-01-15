@@ -81,7 +81,7 @@ func GoConfig(wg *sync.WaitGroup) {
 	}
 
 	// create file watcher for config file
-	watcher, err := fsnotify.NewWatcher()
+	watcher, err := fsnotify.NewBufferedWatcher(100)
 	if err != nil {
 		logger.Error("could not create watcher for config file", "err", err)
 	} else {
@@ -132,7 +132,10 @@ func GoConfig(wg *sync.WaitGroup) {
 				logConfigBeingUsed()
 
 				// TODO-HIGH: add the ability to do a random delay before consuming the updated config
-				// this should support a range (e.g. "5s", "15m", "4h", "2d")
+				// * this should support a range (e.g. "5s", "15m", "4h", "2d")
+				// * the wait period used should come from the config being loaded (with fall back to the one that exists)
+				//   this way if an emergency change needs to be made, it can be applied without waiting for the old change period to complete
+				// TODO-HIGH: if the config is updated during the wait period, what do we do?
 
 				// notify of config change via channel
 				for _, configUpdateChannel := range configUpdateChannels {
