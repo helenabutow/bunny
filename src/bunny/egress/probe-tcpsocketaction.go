@@ -73,7 +73,9 @@ func (action TCPSocketAction) act(probeName string, attemptsMetric *telemetry.Co
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 		var target = net.JoinHostPort(host, fmt.Sprintf("%v", action.port))
 		timeoutDuration := time.Until(timeoutTime)
-		tcpConnection, err := net.DialTimeout("tcp", target, timeoutDuration)
+		dialer := newDialer()
+		dialer.Timeout = timeoutDuration
+		tcpConnection, err := dialer.Dial("tcp", target)
 		if err != nil {
 			message := "probe failed - could not connect to tcp server"
 			telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, false)

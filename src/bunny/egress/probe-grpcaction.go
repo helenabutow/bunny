@@ -59,10 +59,13 @@ func (action GRPCAction) act(probeName string, attemptsMetric *telemetry.Counter
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
 		// create the grpc client and connect to the server
 		var target = net.JoinHostPort("localhost", fmt.Sprintf("%v", action.port))
-		conn, err := grpc.Dial(target,
+		conn, err := grpc.DialContext(spanContext, target,
 			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpc.WithBlock(),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+				return newDialer().DialContext(ctx, "tcp", addr)
+			}),
 		)
 		if err != nil {
 			logger.Error("error while creating grpc client and connecting to server", "err", err)

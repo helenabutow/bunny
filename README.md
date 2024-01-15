@@ -5,7 +5,7 @@ Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and trans
 # Status
 
 Please don't use Bunny in production. Or test it heavily if you do.
-<!-- TODO-MEDIUM: add an acknowledgements section (for otel-cli, OpenTelemetry, Prometheus, and the dev log formatting package that we use) -->
+<!-- TODO-LOW: add an acknowledgements section (for otel-cli, OpenTelemetry, Prometheus, and the dev log formatting package that we use) -->
 # Features
 
 <!-- TODO-LOW: update the feature list -->
@@ -23,7 +23,7 @@ A (likely incomplete) feature list:
     * support for Prometheus (for scraping metrics) and OTLP endpoints (for pushing metrics and traces)
     * extensible to other metrics and trace systems which OpenTelemetry supports
 * signals:
-    * waits for all processes with a given name to exit before shutting down (to ensure that all probes are handled until the app process exits)
+    * waits for all processes with a given regular expression to exit before shutting down (to ensure that all probes are handled until the app process exits)
 
 # Use Cases
 

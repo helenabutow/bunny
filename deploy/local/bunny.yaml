@@ -1,5 +1,6 @@
 egress:
-  // TODO-MEDIUM: if we ran the probes on separate goroutines, we could make the delay, period, and timeout configurable for each probe
+  # TODO-LOW: if we ran the probes on separate goroutines, we could make the delay, period, and timeout configurable for each probe
+  # how many people will actually use this? Kubernetes only supports a single probe
   initialDelayMilliseconds: 0
   periodMilliseconds: 3000
   timeoutMilliseconds: 2000
@@ -8,12 +9,6 @@ egress:
   probes:
     # - name: "alpha"
     #   httpGet:
-    #     # TODO-LOW: we should add support for TLS with self-signed certs
-    #     # we should support checking against files in a directory or against fingerprints
-    #     # the files can come from volume mounted Secrets
-    #     # we should be able to do this from files using something like:
-    #     #   systemCertPool, err := x509.SystemCertPool()
-    #     #   systemCertPool.AddCert()
     #     host: "localhost"
     #     httpHeaders:
     #       - name: "x-bunny-test-header-name"
@@ -120,6 +115,8 @@ egress:
            name: "egress_probe_epsilon_successes"
            enabled: true
 ingress:
+  # TODO-MEDIUM: we probably need support for TLS on ingress as well
+  # since Kubernetes doesn't check the validity of certs, we can just generate a new cert on startup
   httpServer:
     port: 1312
     readTimeoutMilliseconds: 5000

@@ -4,6 +4,7 @@ import (
 	"bunny/config"
 	"bunny/telemetry"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
@@ -20,23 +21,44 @@ type HTTPGetAction struct {
 	timeout time.Duration
 }
 
+// TODO-LOW: support HTTP redirects as Kubernetes does
+// see: https://github.com/kubernetes/kubernetes/blob/master/pkg/probe/http/http.go#L48
+
 func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout time.Duration) *HTTPGetAction {
 	logger.Info("processing http probe config")
 	if httpGetActionConfig == nil {
 		return nil
 	}
 	var host string = "localhost"
-	if httpGetActionConfig.Host == nil && *httpGetActionConfig.Host != "" {
+	if httpGetActionConfig.Host != nil && *httpGetActionConfig.Host != "" {
 		host = *httpGetActionConfig.Host
 	}
+	// TODO-HIGH: support https scheme as well
+	// * see how this is configured: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#httpgetaction-v1-core
+	// * we should accept any version of "HTTPS" or "HTTP" (i.e. call the equivalent of tolower() on the string and do a comparison to that)
 	var url string = fmt.Sprintf("http://%s:%d/%s", host, httpGetActionConfig.Port, httpGetActionConfig.Path)
 	logger.Debug("built url", "url", url)
+
+	// create Transport
+	// this is based on: https://github.com/kubernetes/kubernetes/blob/master/pkg/probe/http/http.go#L51
+	transport := &http.Transport{
+		// since Kubernetes doesn't check cert validity, there's no point in Bunny doing it
+		// for more info on this, see the code linked above
+		// also, from https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#http-probes:
+		// > If `scheme` field is set to `HTTPS`, the kubelet sends an HTTPS request skipping the certificate verification.
+		TLSClientConfig:    &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives:  true,
+		Proxy:              http.ProxyURL(nil),
+		DisableCompression: true,
+		DialContext:        newDialer().DialContext,
+	}
 
 	// this seems like the correct timeout based on https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts
 	// (see the diagram in the "Client Timeouts" section)
 	client := &http.Client{
-		Timeout:   timeout,
-		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:       timeout,
+		Transport:     otelhttp.NewTransport(transport),
+		CheckRedirect: nil,
 	}
 
 	// convert the headers into a map now so we don't have to do it later for each request

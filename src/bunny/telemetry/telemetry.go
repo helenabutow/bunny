@@ -430,4 +430,4 @@ func NewLabels(extraLabels []config.ExtraLabelsConfig) client_golang_prometheus.
 	return m
 }
 
-// TODO-LOW: if we want to associate a trace with logs: https://github.com/go-slog/otelslog
+// TODO-MEDIUM: if we want to associate a trace with logs: https://github.com/go-slog/otelslog

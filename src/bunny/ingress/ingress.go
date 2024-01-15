@@ -112,7 +112,7 @@ func startHTTPServer() {
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.OpenTelemetryMetricsPath), promhttp.Handler())
 
 	// Prometheus metrics handler
-	// TODO-LOW: we're using most of the default options for the handler here. We might need to tweak that.
+	// TODO-MEDIUM: we're using most of the default options for the handler here. We might need to tweak that.
 	handlerOpts := promhttp.HandlerOpts{Registry: telemetry.PromRegistry}
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.PrometheusMetricsPath),
 		promhttp.HandlerFor(telemetry.PromRegistry, handlerOpts))
@@ -170,8 +170,3 @@ func healthEndpointHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	logger.Error("no endpoint found for path", "req.URL.Path", req.URL.Path)
 }
-
-// TODO-LOW: add rate limiting - see https://gobyexample.com/rate-limiting
-// instead, we might have to do this via the `healthEndpoint` func by keeping a request rate metric
-// and rejecting requests that exceed the rate
-// see: https://www.alexedwards.net/blog/how-to-rate-limit-http-requests

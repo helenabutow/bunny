@@ -17,9 +17,6 @@ import (
 )
 
 func ConfigureLogger(packageName string) *slog.Logger {
-	// TODO-LOW: support setting the log level via the config file as well
-	// (so that the initial log level is set via an env var and then is changeable via the config file)
-	// this might be tricky given how we now use adaptors (see below) for other logging frameworks
 	var logLevel = new(slog.LevelVar)
 	logLevelEnvVar := os.Getenv(strings.ToUpper(packageName) + "_LOG_LEVEL")
 	if logLevelEnvVar != "" {

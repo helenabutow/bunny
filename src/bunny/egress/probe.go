@@ -3,6 +3,8 @@ package egress
 import (
 	"bunny/config"
 	"bunny/telemetry"
+	"net"
+	"syscall"
 	"time"
 )
 
@@ -42,5 +44,17 @@ func newProbe(egressProbeConfig *config.EgressProbeConfig, timeout time.Duration
 		ResponseTimeMetric: telemetry.NewResponseTimeMetric(&egressProbeConfig.Metrics.ResponseTime, meter),
 		SuccessesMetric:    telemetry.NewCounterMetric(&egressProbeConfig.Metrics.Successes, meter),
 		ProbeAction:        &probeAction,
+	}
+}
+
+// this is Kubernetes' implementation of creating a Dialer
+// see: https://github.com/kubernetes/kubernetes/blob/master/pkg/probe/dialer_others.go#L33
+func newDialer() *net.Dialer {
+	return &net.Dialer{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return c.Control(func(fd uintptr) {
+				syscall.SetsockoptLinger(int(fd), syscall.SOL_SOCKET, syscall.SO_LINGER, &syscall.Linger{Onoff: 1, Linger: 1})
+			})
+		},
 	}
 }
