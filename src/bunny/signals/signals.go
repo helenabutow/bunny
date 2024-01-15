@@ -6,13 +6,12 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"regexp"
 	"sync"
 	"syscall"
 	"time"
 
-	// TODO-LOW: find a better package for getting a list of processes since mitchellh/go-ps
-	// is no longer maintained and it doesn't give us cmd args or the env to filter on
-	"github.com/mitchellh/go-ps"
+	"github.com/shirou/gopsutil/process"
 )
 
 var logger *slog.Logger = nil
@@ -20,6 +19,7 @@ var osSignalsChannel chan os.Signal = make(chan os.Signal, 1)
 var osSignalListenerChannels []chan os.Signal = []chan os.Signal{}
 var ConfigUpdateChannel chan config.BunnyConfig = make(chan config.BunnyConfig, 1)
 var signalsConfig *config.SignalsConfig = nil
+var watchedProcessCommandLineRegEx *regexp.Regexp = nil
 
 func AddChannelListener(listenersChannel *(chan os.Signal)) {
 	osSignalListenerChannels = append(osSignalListenerChannels, *listenersChannel)
@@ -47,6 +47,12 @@ func GoSignals(wg *sync.WaitGroup) {
 			}
 			logger.Info("received config update")
 			signalsConfig = &bunnyConfig.Signals
+			var err error
+			watchedProcessCommandLineRegEx, err = regexp.Compile(*signalsConfig.WatchedProcessCommandLineRegEx)
+			if err != nil {
+				logger.Error("could not compile watched process regex in config file")
+				continue
+			}
 			logger.Info("config update processing complete")
 
 		case signal, ok := <-osSignalsChannel:
@@ -54,46 +60,57 @@ func GoSignals(wg *sync.WaitGroup) {
 				logger.Error("could not process signal from signal channel")
 			}
 			logger.Info("received signal", "signal", signal)
-			if signalsConfig != nil &&
-				signalsConfig.WatchedProcessName != nil &&
-				*signalsConfig.WatchedProcessName != "" {
-				logger.Info("checking for process to watch")
-				for processExists := true; processExists; {
-					processExists = false
-
-					// get the list of processes
-					logger.Info("getting the list of processes")
-					processes, err := ps.Processes()
-					if err != nil {
-						logger.Error("could not get list of processes", "err", err)
-					}
-
-					// check if any of the processes match the regex
-					for _, process := range processes {
-						if *signalsConfig.WatchedProcessName == process.Executable() {
-							logger.Info("found process to wait on")
-							logger.Debug("found process to wait on", "process.Executable()", process.Executable())
-							logger.Debug("found process to wait on", "process.Pid()", process.Pid())
-							processExists = true
-							break
-						}
-					}
-
-					// sleep so that we don't hammer /proc
-					if processExists {
-						logger.Info("sleeping for a second before checking again")
-						time.Sleep(1 * time.Second)
-					} else {
-						logger.Info("process not found")
-					}
-				}
-			}
+			waitForProcess()
 			logger.Info("notifying packages of signal", "signal", signal)
 			for _, listenerChannel := range osSignalListenerChannels {
 				listenerChannel <- signal
 			}
 			logger.Info("completed shutdowns. Returning from go routine")
 			return
+		}
+	}
+}
+
+func waitForProcess() {
+	logger.Info("checking for process to watch")
+
+	if watchedProcessCommandLineRegEx == nil {
+		logger.Info("no config for watching a process")
+		return
+	}
+
+	for processExists := true; processExists; {
+		processExists = false
+
+		// get the list of processes
+		logger.Info("getting the list of processes")
+		processes, err := process.Processes()
+		if err != nil {
+			logger.Error("could not get list of processes", "err", err)
+		}
+
+		// check if any of the processes match the regex
+		for _, process := range processes {
+			commandLine, err := process.Cmdline()
+			if err != nil {
+				logger.Error("could not get command line for process", "process", process)
+			}
+			logger.Debug("checking command line", "commandLine", commandLine)
+			if watchedProcessCommandLineRegEx.Find([]byte(commandLine)) != nil {
+				logger.Info("found process to wait on",
+					"process.Pid", process.Pid,
+					"commandLine", commandLine)
+				processExists = true
+				break
+			}
+		}
+
+		// sleep so that we don't hammer /proc or the kernel
+		if processExists {
+			logger.Info("sleeping for a second before checking again")
+			time.Sleep(1 * time.Second)
+		} else {
+			logger.Info("process not found")
 		}
 	}
 }

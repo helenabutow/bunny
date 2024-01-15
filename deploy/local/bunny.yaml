@@ -164,7 +164,7 @@ ingress:
             enabled: true
             extraLabels: []
 signals:
-  watchedProcessName: "sleep"
+  watchedProcessCommandLineRegEx: "/bin/sleep 50.*"
 telemetry:
   openTelemetry:
     # the otlp exporters are configured through env vars

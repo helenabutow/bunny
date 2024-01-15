@@ -40,7 +40,7 @@ type ExtraLabelsConfig struct {
 // TelemetryConfig is in config-telemetry.go
 
 type SignalsConfig struct {
-	WatchedProcessName *string `yaml:"watchedProcessName"`
+	WatchedProcessCommandLineRegEx *string `yaml:"watchedProcessCommandLineRegEx"`
 }
 
 type ConfigStage int
