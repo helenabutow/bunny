@@ -42,6 +42,7 @@ type HTTPGetActionConfig struct {
 	HTTPHeaders []HTTPHeadersConfig `yaml:"httpHeaders"`
 	Port        int                 `yaml:"port"`
 	Path        string              `yaml:"path"`
+	Scheme      *string             `yaml:"scheme"`
 }
 
 type HTTPHeadersConfig struct {

@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -33,10 +34,15 @@ func newHTTPGetAction(httpGetActionConfig *config.HTTPGetActionConfig, timeout t
 	if httpGetActionConfig.Host != nil && *httpGetActionConfig.Host != "" {
 		host = *httpGetActionConfig.Host
 	}
-	// TODO-HIGH: support https scheme as well
-	// * see how this is configured: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#httpgetaction-v1-core
-	// * we should accept any version of "HTTPS" or "HTTP" (i.e. call the equivalent of tolower() on the string and do a comparison to that)
-	var url string = fmt.Sprintf("http://%s:%d/%s", host, httpGetActionConfig.Port, httpGetActionConfig.Path)
+	var scheme string = "http"
+	if httpGetActionConfig.Scheme != nil {
+		scheme = strings.ToLower(*httpGetActionConfig.Scheme)
+		if scheme != "http" && scheme != "https" {
+			logger.Error("scheme for http get action is neither http nor https")
+			return nil
+		}
+	}
+	var url string = fmt.Sprintf("%s://%s:%d/%s", scheme, host, httpGetActionConfig.Port, httpGetActionConfig.Path)
 	logger.Debug("built url", "url", url)
 
 	// create Transport

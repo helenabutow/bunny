@@ -115,8 +115,6 @@ egress:
            name: "egress_probe_epsilon_successes"
            enabled: true
 ingress:
-  # TODO-MEDIUM: we probably need support for TLS on ingress as well
-  # since Kubernetes doesn't check the validity of certs, we can just generate a new cert on startup
   httpServer:
     port: 1312
     readTimeoutMilliseconds: 5000

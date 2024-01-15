@@ -112,8 +112,11 @@ func startHTTPServer() {
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.OpenTelemetryMetricsPath), promhttp.Handler())
 
 	// Prometheus metrics handler
-	// TODO-MEDIUM: we're using most of the default options for the handler here. We might need to tweak that.
-	handlerOpts := promhttp.HandlerOpts{Registry: telemetry.PromRegistry}
+	handlerOpts := promhttp.HandlerOpts{
+		// if something is scraping this endpoint with more than 100 active connections, that's a problem in the scraper
+		MaxRequestsInFlight: 100,
+		Registry:            telemetry.PromRegistry,
+	}
 	mux.Handle(ensureLeadingSlash(ingressConfig.HTTPServerConfig.PrometheusMetricsPath),
 		promhttp.HandlerFor(telemetry.PromRegistry, handlerOpts))
 
