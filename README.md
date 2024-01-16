@@ -2,6 +2,16 @@
 
 Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and improve those that already exist.
 
+# Acknowledgements
+
+Bunny builds on the work of others, which we are grateful for:
+* [OpenTelemetry](https://opentelemetry.io/) is a powerful framework for adding metrics and tracing to any codebase
+* [Prometheus](https://prometheus.io/) but especially the contributors to the [usage page for TSDB](https://github.com/prometheus/prometheus/blob/main/tsdb/docs/usage.md)
+* [otel-cli](https://github.com/equinix-labs/otel-cli) handled tracing exec probes for me. I just had to add it to the container image and set an environment variable to integrate it. Simple and powerful.
+* [devslog](github.com/golang-cz/devslog) made reading logs easier and nicer. Send JSON to your centralized logging system but use this when reading logs locally.
+* [Task](https://taskfile.dev/) saved me from having to use `make`. It's clear and easy to use.
+* Grafana [Tempo](https://grafana.com/oss/tempo/) (for tracing) and [Mimir](https://grafana.com/oss/mimir/) (for metrics) - both were really easy to install via Helm and perfect for a local dev environment where I didn't have to worry about running up a bill.
+
 # Design
 
 Bunny is based on a couple of main ideas:
@@ -32,7 +42,6 @@ Security-wise, Bunny follows best practice:
 # Status
 
 Please don't use Bunny in production. Or test it heavily if you do.
-<!-- TODO-LOW: add an acknowledgements section (for otel-cli, OpenTelemetry, Prometheus, and the dev log formatting package that we use) -->
 
 # Use Cases
 
@@ -49,7 +58,7 @@ Please don't use Bunny in production. Or test it heavily if you do.
 Some of the functionality of Bunny could be recreated using different tools or patterns. In particular:
 * basing a probe on a Prometheus query result could be implemented using an exec probe and `promtool`. This assumes that a Prometheus database already exists (potentially as another sidecar).
 * adding traces to HTTP probes could be done by adding an NGINX proxy: https://opentelemetry.io/blog/2022/instrument-nginx/
-* [otel-cli](https://github.com/equinix-labs/otel-cli) can already be used to trace programs run by exec probes.
+* [otel-cli](https://github.com/equinix-labs/otel-cli) can already be used to trace programs run by exec probes. In fact, we include it in the container image for Bunny.
 
 # Deployment Example
 
@@ -108,8 +117,53 @@ This looks like a bug in either OpenTelemetry or Grafana Mimir. From running Wir
 
 # Building
 
-<!-- TODO-LOW: write docs on building the binaries and Docker image -->
+## Prerequisites For Building
+
+The build has a couple prereqs:
+* [Homebrew](https://brew.sh/) is needed for the `brew install` commands below.
+* A golang compiler that supports multiple architectures and operating systems. On a Mac, you get this with `brew install go`
+* [Task](https://taskfile.dev/) need to be installed. Easily done with `brew install go-task` on a Mac.
+* [Docker Desktop](https://www.docker.com/get-started/) - though technically we need access to some implementation of the `docker` command that we can run `docker build` with. You might be able to do this with other container build systems. The `Dockerfile` for Bunny and Bee are pretty simple.
+
+## Binaries
+
+In the root directory of the repo, run `task build-bunny`. This will build the binaries for each supported operating system and CPU combination. Likewise, for Bee, run `task build-bee`.
+
+## Container Images
+
+Same as above, just run `task build-bunny-docker-image` or `task build-bee-docker-image` instead. This will build the container images for each supported operating system and CPU combination, automatically building the binaries as well.
 
 # Development
 
 <!-- TODO-LOW: write docs on the dev process (including how to use the Taskfile to setup a local environment) -->
+
+## Prerequisites For Development
+
+The prereqs for dev include those for building, so install those first.
+
+We also need:
+* Helm
+* kubectl
+
+Aside from that, we use [vscode](https://code.visualstudio.com/) for editing with the following extensions:
+* [Go](https://marketplace.visualstudio.com/items?itemName=golang.Go) - 
+* [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid)
+* [Task](https://marketplace.visualstudio.com/items?itemName=task.vscode-task)
+* [Todo Tree](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree) - we should probably switch to GitHub Issues at some point but for now, this is lighter/faster/better
+* [Code Spell Checker](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker) - because we misspell things
+
+## Setting Up A Dev Environment
+
+Once the prereqs are installed, `git clone` a copy of the code and open `bunny.code-workspace`. That should configure vscode properly.
+
+Start up Docker Desktop and make sure that Kubernetes is enabled for it. See https://docs.docker.com/desktop/kubernetes/ for how to do that.
+
+To set up a copies of Grafana, Mimir, and Tempo, run `task install-grafana`. You can access these at http://localhost:30000 with username `admin` and password `blarg`. Configuration for these can be found in `deploy/kubernetes/grafana`.
+
+Edit `deploy/local/bunny.yaml` for changing settings. It is pre-configured to send metrics and traces to the local instances of Mimir and Tempo (if you has those running).
+
+Run `task run-bee` and `task run-bunny` to run copies of Bee and Bunny outside of a container. These will build the binaries if needed.
+
+# Why Bunny and Bee?
+
+They're nicknames for my cats.

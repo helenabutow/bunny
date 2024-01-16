@@ -123,7 +123,6 @@ tasks:
           GOARCH: "{{.ITEM}}"
 
   build-docker-image:
-    deps: [ configure-docker ]
     dir: ./deploy/containers/{{.BINARY_NAME}}/
     cmds:
       - task: build-{{.BINARY_NAME}}

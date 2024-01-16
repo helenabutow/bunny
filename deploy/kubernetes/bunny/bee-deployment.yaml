@@ -98,7 +98,7 @@ spec:
         - name: tsdb
           mountPath: /tsdb
           readOnly: false
-        # this seems like a reasonable ammount of a lightly used endpoint
+        # this seems like a reasonable amount of a lightly used endpoint
         # of course you should tweak these number to match your use case
       - name: bee
         image: bee:latest-arm64
