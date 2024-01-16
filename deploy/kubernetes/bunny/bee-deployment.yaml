@@ -13,6 +13,8 @@ spec:
       labels:
         app.kubernetes.io/name: bee
     spec:
+      # this is needed so that bunny can watch the app process and wait for it to exit before exiting itself
+      shareProcessNamespace: true
       containers:
       - name: bunny
         image: bunny:latest-arm64
@@ -78,6 +80,17 @@ spec:
             port: 1312
           initialDelaySeconds: 1
           periodSeconds: 1
+        resources:
+          limits:
+            cpu: "0.25"
+            memory: "96Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
         volumeMounts:
         - name: bunny-secret
           mountPath: /config
@@ -87,10 +100,6 @@ spec:
           readOnly: false
         # this seems like a reasonable ammount of a lightly used endpoint
         # of course you should tweak these number to match your use case
-        resources:
-          limits:
-            cpu: "0.25"
-            memory: "96Mi"
       - name: bee
         image: bee:latest-arm64
         env:

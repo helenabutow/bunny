@@ -2,35 +2,40 @@
 
 Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and improve those that already exist.
 
+# Design
+
+Bunny is based on a couple of main ideas:
+1. the existing Kubernetes probes are limited in how they perform checks
+2. without either metrics or tracing on probes, it's difficult to tell how often they fail or under which conditions
+
+Bunny solves this by:
+1. Running the probes itself
+2. Generating metrics and traces for those probes
+3. Providing HTTP endpoints for Kubernetes to check against. These endpoints run Prometheus queries against the probe metrics to determine success or failure
+
+Since Bunny runs the probes, we've improved on what Kubernetes already offers by:
+* letting more or less probes run in every Pod - since probes just generate metrics and traces, they aren't tied to liveness, readiness, or startup
+* running probes more often - by running a probe multiple times a second, more samples are collected, leading to a better representation of the health of the Pod
+* having TCP probes support an [expect](https://en.wikipedia.org/wiki/Expect) like conversation test instead of just a port open test
+* running exec probes inside Bunny's container, not the app container, which limits what they can access in the app container (increasing security)
+
+The metrics that are generated are stored locally (allowing for fast queries) and can be scraped by any Prometheus compatible agent or pushed to an OpenTelemetry OTLP compatible metrics endpoint. Traces can also be pushed to an OTLP endpoint. Other non-OTLP endpoints can be easily added (provided that they're OpenTelemetry compatible).
+
+Bunny can be reconfigured without recreating Pods. Since it watches for changes in its config file and applies them when it sees them, the probes for a Pod can be reconfigured without recreating the Pods. This unlocks a few use cases (see the Use Cases section below).
+
+Security-wise, Bunny follows best practice:
+* it runs as a non-root user
+* it drops all capabilities
+* runs in a read-only root filesystem
+* the container image is based on scratch (so it doesn't have anything other than the bunny binary)
+
 # Status
 
 Please don't use Bunny in production. Or test it heavily if you do.
 <!-- TODO-LOW: add an acknowledgements section (for otel-cli, OpenTelemetry, Prometheus, and the dev log formatting package that we use) -->
-# Features
-
-<!-- TODO-LOW: update the feature list -->
-A (likely incomplete) feature list:
-
-* config:
-    * Reconfiguration without redeploying Pods - Bunny detects changes in the config file (via inotify) and automatically reconfigures itself
-* ingress:
-    * Probe endpoints are based on Prometheus PromQL queries - this allows for more complex conditions to be expressed for startup, liveness, and readiness
-* egress:
-    * Performs HTTP GET, GRPC, TCP, and Exec probe actions
-    * TCP probe actions support an Expect like conversation test instead of just a port open test
-    * The quantity of probe actions performed isn't limited to the number of probe endpoints
-* logging:
-    * JSON or console formatted logs
-    * different log levels for each component of Bunny (e.g. ingress and egress related code can have different logging levels)
-* telemetry:
-    * support for Prometheus (for scraping metrics) and OTLP endpoints (for pushing metrics and traces)
-    * extensible to other metrics and trace systems which OpenTelemetry supports
-* signals:
-    * waits for all processes with a given regular expression to exit before shutting down (to ensure that all probes are handled until the app process exits)
 
 # Use Cases
 
-<!-- TODO-LOW: list more use cases -->
 * SRE tweaking readiness probes during regional off-hours to lower cost
     * Technically, this can be done already by updating the configuration of the Pod but that requires a rolling update of all the Pods in the Deployment (which could take minutes to hours). Bunny avoids this.
 * Performance confidently tweaking probes to ensure that provisioned Pod capacity is utilized
@@ -42,14 +47,11 @@ A (likely incomplete) feature list:
 # Alternatives
 
 Some of the functionality of Bunny could be recreated using different tools or patterns. In particular:
-* basing a probe on a Prometheus query result could be implemented using an exec probe and `promtool`
+* basing a probe on a Prometheus query result could be implemented using an exec probe and `promtool`. This assumes that a Prometheus database already exists (potentially as another sidecar).
 * adding traces to HTTP probes could be done by adding an NGINX proxy: https://opentelemetry.io/blog/2022/instrument-nginx/
+* [otel-cli](https://github.com/equinix-labs/otel-cli) can already be used to trace programs run by exec probes.
 
-# Deployment
-
-Bunny runs as a sidecar container within the same Pod as your app's container. Configuration is mostly via a YAML file (with the remainder via environment variables). Bunny detects changes to the YAML file and automatically reconfigures itself.
-
-# Example
+# Deployment Example
 
 <!-- TODO-LOW: show how to run a full example, with Bunny and Bee, inside of Docker Desktop, and with Grafana -->
 
@@ -61,14 +63,14 @@ To configure Bunny, a combination of environment variables and a config file are
 
 In the Pod's spec, you'll need to set the following:
 
-* `shareProcessNamespace` needs to be true if you want to wait for your app's process to exit before Bunny shuts down. You'll want that if you want to ensure that Bunny keeps proxying probes until your app is shutdown. Also take a look at setting `signals.watchedProcessName` in Bunny's YAML file.
+* `shareProcessNamespace` needs to be true if you want to wait for your app's process to exit before Bunny shuts down. You'll want that if you want to ensure that Bunny keeps proxying probes until your app is shutdown. Also take a look at setting `signals.watchedProcessCommandLineRegEx` in Bunny's YAML file.
 * `terminationGracePeriodSeconds` should be set to something high enough for your app and Bunny to cleanly shutdown (which includes sending all metrics and traces to their respective endpoints). By default, Kubernetes sets this to `30` but if your app needs more time, set to a value high enough for both your app and Bunny.
-<!-- TODO-MEDIUM: what can we list for the securityContext? We should try for least privilege -->
 
 For Bunny's container spec in the Pod spec:
 
 * `env` should be set based on the "Environment Variables" section below
-* `livenessProbe`, `readinessProbe`, and `startupProbe`
+<!-- TODO-LOW: finish describing this -->
+* `livenessProbe`, `readinessProbe`, and `startupProbe` 
 * `ports` needs to be set to the port listed for the `ingress.httpServer.port` setting. See the "Config File" section below.
 * `resources` should have a memory request set based on the memory requirements for Bunny. Also see the note on the `GOMEMLIMIT` and `GOGC` env vars in the "Environment Variables" section.
 * `volumeMounts` is the recommended way to get Bunny's YAML file into the container. By using a volume mount of a ConfigMap or Secret, the content of the YAML file can be changed without recreating the Pod. Bunny will detect the change in content and automatically reload the file.

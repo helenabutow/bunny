@@ -74,7 +74,8 @@ func (action ExecAction) act(probeName string, attemptsMetric *telemetry.Counter
 		}
 		telemetry.PostMeasurable(successesMetric, responseTimeMetric, timerStart, true)
 		message := "probe succeeded"
-		// TODO-LOW: limit the ammount of stdout and stderr to limit memory usage from incredibly noisy exec programs/scripts
+		// TODO-LOW: limit the amount of stdout and stderr to limit memory usage from incredibly noisy exec programs/scripts
+		// see how Kubernetes does this for their version of the exec probe action
 		logger.Debug(message, "cmd.Path", cmd.Path, "cmd.Args", cmd.Args, "output", string(output))
 		span.SetStatus(codes.Ok, message)
 	}()
