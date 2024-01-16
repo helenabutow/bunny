@@ -240,7 +240,6 @@ func GoTelemetry(wg *sync.WaitGroup) {
 	}
 }
 
-// TODO-MEDIUM: remove the duplication between this and RangeQuery()
 func InstantQuery(timeout time.Duration, queryString string, instantTime time.Time) (bool, error) {
 	logger.Debug("execing instant query",
 		"timeout", timeout,

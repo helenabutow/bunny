@@ -12,10 +12,13 @@ Please don't use Bunny in production. Or test it heavily if you do.
 A (likely incomplete) feature list:
 
 * config:
-    * Reconfiguration without redeploying Pods via ionotify
+    * Reconfiguration without redeploying Pods - Bunny detects changes in the config file (via inotify) and automatically reconfigures itself
 * ingress:
+    * Probe endpoints are based on Prometheus PromQL queries - this allows for more complex conditions to be expressed for startup, liveness, and readiness
 * egress:
-    * Performs HTTP GET, GRPC, TCP, and Exec probes
+    * Performs HTTP GET, GRPC, TCP, and Exec probe actions
+    * TCP probe actions support an Expect like conversation test instead of just a port open test
+    * The quantity of probe actions performed isn't limited to the number of probe endpoints
 * logging:
     * JSON or console formatted logs
     * different log levels for each component of Bunny (e.g. ingress and egress related code can have different logging levels)
@@ -78,6 +81,7 @@ For your app's container spec in the Pod spec:
 
 The following env vars can be set:
 
+<!-- TODO-LOW: add more env vars to the docs -->
 
 | Name                   | Default Value | Allowed Values | Purpose |
 | :---                   | :---          | :---           | :---    |
@@ -90,6 +94,9 @@ The following env vars can be set:
 ## Config File
 
 <!-- TODO-LOW: write docs on the config file. Or think about adding comments to the example config file -->
+
+<!-- TODO-LOW: write docs on using debug containers to access the filesystem of the container -->
+<!-- this should include the `cd /proc/1/root/` trick -->
 
 # Known Issues and Bugs
 
