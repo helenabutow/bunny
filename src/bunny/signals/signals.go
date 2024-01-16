@@ -47,11 +47,13 @@ func GoSignals(wg *sync.WaitGroup) {
 			}
 			logger.Info("received config update")
 			signalsConfig = &bunnyConfig.Signals
-			var err error
-			watchedProcessCommandLineRegEx, err = regexp.Compile(*signalsConfig.WatchedProcessCommandLineRegEx)
-			if err != nil {
-				logger.Error("could not compile watched process regex in config file")
-				continue
+			if signalsConfig.WatchedProcessCommandLineRegEx != nil {
+				var err error
+				watchedProcessCommandLineRegEx, err = regexp.Compile(*signalsConfig.WatchedProcessCommandLineRegEx)
+				if err != nil {
+					logger.Error("could not compile watched process regex in config file")
+					continue
+				}
 			}
 			logger.Info("config update processing complete")
 

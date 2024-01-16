@@ -31,7 +31,8 @@ import (
 )
 
 var logger *slog.Logger = nil
-var httpServer *http.Server = nil
+var httpServerForHealth *http.Server = nil
+var httpServerForHello *http.Server = nil
 var tracer *trace.Tracer = nil
 
 func startGRPCEndpoint() {
@@ -79,7 +80,8 @@ func main() {
 	tracer = &newTracer
 
 	startGRPCEndpoint()
-	startHTTPEndpoint()
+	startHTTPEndpointForHealth()
+	startHTTPEndpointForHello()
 	startTCPEndpoint()
 
 	// wait for OS signal
@@ -183,8 +185,35 @@ func tcpWrite(writer *bufio.Writer, words string) bool {
 	return true
 }
 
-func startHTTPEndpoint() {
-	logger.Info("starting HTTP server")
+func startHTTPEndpointForHello() {
+	logger.Info("starting HTTP server for hello")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/hello", helloEndpoint)
+	httpServerForHello = &http.Server{
+		Addr:              ":" + fmt.Sprintf("%d", 6560),
+		ReadTimeout:       0,
+		ReadHeaderTimeout: 0,
+		WriteTimeout:      0,
+		IdleTimeout:       0,
+		MaxHeaderBytes:    0,
+		Handler:           mux,
+	}
+	go func() {
+		err := httpServerForHello.ListenAndServe()
+		if err != http.ErrServerClosed {
+			logger.Error("Error starting or closing http listener", "err", err)
+		}
+	}()
+	logger.Info("done starting HTTP server for hello")
+}
+
+func helloEndpoint(response http.ResponseWriter, request *http.Request) {
+	response.WriteHeader(http.StatusOK)
+	fmt.Fprintln(response, "hello")
+}
+
+func startHTTPEndpointForHealth() {
+	logger.Info("starting HTTP server for health")
 	mux := http.NewServeMux()
 	handleFunc := func(pattern string, handlerFunc func(http.ResponseWriter, *http.Request)) {
 		// Configure the "http.route" for the HTTP instrumentation.
@@ -194,7 +223,7 @@ func startHTTPEndpoint() {
 	handleFunc("/healthz", healthEndpoint)
 	otelHandler := otelhttp.NewHandler(mux, "/")
 
-	httpServer = &http.Server{
+	httpServerForHealth = &http.Server{
 		Addr:              ":" + fmt.Sprintf("%d", 2624),
 		ReadTimeout:       0,
 		ReadHeaderTimeout: 0,
@@ -205,12 +234,12 @@ func startHTTPEndpoint() {
 	}
 
 	go func() {
-		err := httpServer.ListenAndServe()
+		err := httpServerForHealth.ListenAndServe()
 		if err != http.ErrServerClosed {
 			logger.Error("Error starting or closing http listener", "err", err)
 		}
 	}()
-	logger.Info("done starting HTTP server")
+	logger.Info("done starting HTTP server for health")
 }
 
 func healthEndpoint(response http.ResponseWriter, request *http.Request) {

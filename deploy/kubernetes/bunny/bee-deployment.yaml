@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bee
+  labels:
+    app.kubernetes.io/name: bee
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bee
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bee
+    spec:
+      containers:
+      - name: bunny
+        image: bunny:latest-arm64
+        # we use this imagePullPolicy so that we can use images built on Docker Desktop
+        # you might need something else in production
+        imagePullPolicy: IfNotPresent 
+        env:
+          # golang provides a way to set a soft memory limit
+          # it is recommended that the following two values be set (to values appropriate for your environment)
+          # to reduce Bunny's memory usage
+          # see: https://tip.golang.org/doc/gc-guide
+          - name: "GOMEMLIMIT"
+            value: "67108864" # 64 megs
+          - name: "GOGC"
+            value: "10" # 10 percent
+          - name: "BUNNY_CONFIG_FILE_PATH"
+            value: "/config/bunny.yaml"
+          - name: "LOG_HANDLER"
+            value: "text"
+            # value: "json"
+          - name: "MAIN_LOG_LEVEL"
+            value: "info"
+          - name: "CONFIG_LOG_LEVEL"
+            value: "info"
+          - name: "EGRESS_LOG_LEVEL"
+            value: "info"
+          - name: "INGRESS_LOG_LEVEL"
+            value: "info"
+          - name: "TELEMETRY_LOG_LEVEL"
+            value: "info"
+          - name: "SIGNALS_LOG_LEVEL"
+            value: "info"
+          - name: "TZ"
+            value: "UTC"
+          # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+          # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
+          - name: "OTEL_METRIC_EXPORT_INTERVAL"
+            value: "1000" # 1000 = 1 second
+          - name: "OTEL_EXPORTER_OTLP_TIMEOUT"
+            value: "1000" # 1000 = 1 second
+          - name: "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value: "http/protobuf"
+          # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks in Taskfile.yml)
+          - name: "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"
+            value: "http://mimir-nginx.mimir.svc.cluster.local:80/otlp/v1/metrics"
+          - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+            value: "http://tempo-gateway.tempo.svc.cluster.local:80/v1/traces"
+          - name: "GRPC_GO_LOG_VERBOSITY_LEVEL"
+            value: "99"
+          - name: "GRPC_GO_LOG_SEVERITY_LEVEL"
+            value: "info"
+        ports:
+        - containerPort: 1312
+        livenessProbe:
+          httpGet:
+            path: /healthz-liveness
+            port: 1312
+          initialDelaySeconds: 1
+          periodSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: /healthz-readiness
+            port: 1312
+          initialDelaySeconds: 1
+          periodSeconds: 1
+        volumeMounts:
+        - name: bunny-secret
+          mountPath: /config
+          readOnly: true
+        - name: tsdb
+          mountPath: /tsdb
+          readOnly: false
+        # this seems like a reasonable ammount of a lightly used endpoint
+        # of course you should tweak these number to match your use case
+        resources:
+          limits:
+            cpu: "0.25"
+            memory: "96Mi"
+      - name: bee
+        image: bee:latest-arm64
+        env:
+          - name: "LOG_HANDLER"
+            value: "text"
+            # value: "json"
+          - name: "MAIN_LOG_LEVEL"
+            value: "debug"
+          - name: "TZ"
+            value: "UTC"
+          # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+          # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
+          - name: "OTEL_EXPORTER_OTLP_TIMEOUT"
+            value: "1000" # 1000 = 1 second
+          - name: "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value: "http/protobuf"
+          # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)
+          - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+            value: "http://tempo-gateway.tempo.svc.cluster.local:80/v1/traces"
+          - name: "GRPC_GO_LOG_VERBOSITY_LEVEL"
+            value: "99"
+          - name: "GRPC_GO_LOG_SEVERITY_LEVEL"
+            value: "info"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+      volumes:
+      - name: bunny-secret
+        secret:
+          secretName: bunny
+      - name: tsdb
+        emptyDir:
+          # be sure to test how much storage the Prometheus TSDB needs
+          # options in the config file (at telemetry.prometheus.tsdbOptions) help
+          # control how much storage is used
+          sizeLimit: 10Mi

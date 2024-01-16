@@ -56,7 +56,6 @@ tasks:
       GOARCH:
         sh: go env GOARCH
     env:
-      BEE_CONFIG_FILE_PATH: "{{.ROOT_DIR}}/deploy/local/bee.yaml"
       LOG_HANDLER: text
       # LOG_HANDLER: json
       MAIN_LOG_LEVEL: debug
@@ -129,7 +128,7 @@ tasks:
     cmds:
       - task: build-{{.BINARY_NAME}}
       - cp "{{.ROOT_DIR}}/{{.BINARY_NAME}}-linux-{{.GOARCH}}" "{{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}"
-      - defer: rm {{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}-linux-*
+      - defer: rm {{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}
       - docker build -t {{.BINARY_NAME}}:latest-{{.GOARCH}} .
 
   # this is a little hack-ish as there's no way to set memory in docker-desktop.yaml
@@ -183,26 +182,15 @@ tasks:
     cmds:
       - telepresence leave bunny
 
-  create-bunny-deployment:
-    deps: [configure-docker, build-docker-image]
+  apply-bunny-deployment:
+    deps: [configure-docker, build-bunny-docker-image, build-bee-docker-image]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-deployment.yaml"
-    status:
-      - kubectl get deployment bunny
+      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/"
 
-  create-bunny-secret:
+  delete-bunny-deployment:
     deps: [configure-docker]
     cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-secret.yaml"
-    status:
-      - kubectl get secret bunny
-
-  create-bunny-service:
-    deps: [configure-docker]
-    cmds:
-      - kubectl apply -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/bunny-service.yaml"
-    status:
-      - kubectl get service bunny
+      - kubectl delete -f "{{.ROOT_DIR}}/deploy/kubernetes/bunny/"
 
   add-grafana-helm-repo:
     cmds:
