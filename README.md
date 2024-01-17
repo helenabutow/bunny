@@ -62,7 +62,39 @@ Some of the functionality of Bunny could be recreated using different tools or p
 
 # Deployment Example
 
-<!-- TODO-LOW: show how to run a full example, with Bunny and Bee, inside of Docker Desktop, and with Grafana -->
+## Prerequisites For Deployment Example
+
+1. Complete the "Prerequisites For Building" and "Prerequisites For Development" sections below
+2. Set up a copies of Grafana, Mimir, and Tempo, by running `task install-grafana` (expect this to take 2-5 minutes to complete - there's lots of container images to pull and containers to start). You can access these at http://localhost:30000 with username `admin` and password `blarg`. Configuration for these can be found in `deploy/kubernetes/grafana`. These can be deleted with `task delete-grafana-all`.
+
+## Creating the Kubernetes Deployment
+
+To deploy Bee and Bunny to Kubernetes, run `task apply-bunny-deployment`. This will build the binaries and container images, then create the Deployment, Secret, and Services required. Files for this can be found in `deploy/kubernetes/bunny`. Note that the config for Bunny is in `deploy/kubernetes/bunny/bunny-secret.yaml` for the Kubernetes Deployment. This can be deleted with `task delete-bunny-deployment`.
+
+## Finding The Metrics And Traces
+
+1. Connect to Grafana using the link and credentials above. 
+2. After logging in, on the top-left of the screen, to the left of the "Home" text, click on the the three lines, then select "Explore".
+3. From the "Explore" view, you should see a drop-down list to the right of the "Outline" text. Click this to switch between "Mimir" (for metrics) and "Tempo" (for traces).
+
+To see the metrics available:
+
+1. Switch to Mimir
+2. Click on the "Run query" button on the top-right
+3. Click on the "Select metric" drop-down on the left
+4. Click on the "Run query" button again
+5. Click on the down arrow to the right of "Run query" to select an auto-update interval
+
+For more info on how to use Mimir: https://grafana.com/docs/mimir/latest/
+
+To see the traces available:
+
+1. Switch to Tempo
+2. Change the "Query type" to "Search" and click on the "Run query" button
+3. Click on a Trace ID to get more details on it
+5. Click on the down arrow to the right of "Run query" to select an auto-update interval
+
+For more info on how to use Tempo: https://grafana.com/docs/tempo/latest/
 
 # Configuration
 
@@ -160,11 +192,11 @@ Start up Docker Desktop and make sure that Kubernetes is enabled for it. See htt
 
 To set up a copies of Grafana, Mimir, and Tempo, run `task install-grafana`. You can access these at http://localhost:30000 with username `admin` and password `blarg`. Configuration for these can be found in `deploy/kubernetes/grafana`.
 
-Edit `deploy/local/bunny.yaml` for changing settings. It is pre-configured to send metrics and traces to the local instances of Mimir and Tempo (if you has those running).
+Edit `deploy/local/bunny.yaml` for changing settings. It is pre-configured to send metrics and traces to the local instances of Mimir and Tempo (if you have those running) and to send probes to Bee.
 
 Run `task run-bee` and `task run-bunny` to run copies of Bee and Bunny outside of a container. These will build the binaries if needed.
 
-If you want to deploy Bee and Bunny to Kubernetes, run `task apply-bunny-deployment`.
+If you want to deploy Bee and Bunny to Kubernetes, run `task apply-bunny-deployment`. Files for this can be found in `deploy/kubernetes/bunny`. Note that the config for Bunny is in `deploy/kubernetes/bunny/bunny-secret.yaml` for the Kubernetes Deployment.
 
 # Why Bunny and Bee?
 
