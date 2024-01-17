@@ -2,6 +2,8 @@
 
 Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and improve those that already exist.
 
+<!-- TODO-MEDIUM: add a table of contents -->
+
 # Acknowledgements
 
 Bunny builds on the work of others, which we are grateful for:
