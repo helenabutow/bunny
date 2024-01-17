@@ -136,7 +136,7 @@ tasks:
     cmds:
       - ctlptl apply -f deploy/ctlptl/docker-desktop.yaml
       - ctlptl docker-desktop set vm.resources.memoryMiB 8192
-      # - ctlptl docker-desktop set vm.kubernetes.enabled true
+      - ctlptl docker-desktop set vm.kubernetes.enabled true
     status:
       - ctlptl get cluster docker-desktop -o json | jq --exit-status '.status.cpus == 4'
 

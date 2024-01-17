@@ -90,7 +90,7 @@ For your app's container spec in the Pod spec:
 
 ## Environment Variables
 
-The following env vars can be set:
+The following env vars can be set for Bunny's container:
 
 <!-- TODO-LOW: add more env vars to the docs -->
 
@@ -135,15 +135,15 @@ Same as above, just run `task build-bunny-docker-image` or `task build-bee-docke
 
 # Development
 
-<!-- TODO-LOW: write docs on the dev process (including how to use the Taskfile to setup a local environment) -->
-
 ## Prerequisites For Development
 
 The prereqs for dev include those for building, so install those first.
 
 We also need:
-* Helm
-* kubectl
+* [helm](https://helm.sh/) - we just use this for installing Grafana, Mimir, and Tempo. Install it with `brew install helm`
+* [kubectl](https://kubernetes.io/docs/reference/kubectl/) - Docker Desktop might provide this but the copy from Homebrew tends to be newer. Install it with `brew install kubernetes-cli`
+* [ctlptl](https://github.com/tilt-dev/ctlptl) - this is used to configure Docker Desktop. Most of the time it's just used to start Docker Desktop before doing an image build. It's easily installed with `brew install tilt-dev/tap/ctlptl`
+* A Kubernetes cluster. With `ctlptl`, it's setup for us in Docker Desktop. If you've already configured Docker Desktop's Kubernetes feature, `ctlptl` will just validate that it has been.
 
 Aside from that, we use [vscode](https://code.visualstudio.com/) for editing with the following extensions:
 * [Go](https://marketplace.visualstudio.com/items?itemName=golang.Go) - 
@@ -163,6 +163,8 @@ To set up a copies of Grafana, Mimir, and Tempo, run `task install-grafana`. You
 Edit `deploy/local/bunny.yaml` for changing settings. It is pre-configured to send metrics and traces to the local instances of Mimir and Tempo (if you has those running).
 
 Run `task run-bee` and `task run-bunny` to run copies of Bee and Bunny outside of a container. These will build the binaries if needed.
+
+If you want to deploy Bee and Bunny to Kubernetes, run `task apply-bunny-deployment`.
 
 # Why Bunny and Bee?
 
