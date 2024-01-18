@@ -62,7 +62,6 @@ tasks:
       TZ: UTC
       # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
       # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
-      # TODO-LOW: doc how if these aren't set, shutdown takes about 10 seconds
       OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
       # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)
       OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
@@ -92,7 +91,6 @@ tasks:
       TZ: UTC
       # see: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
       # and: https://opentelemetry.io/docs/instrumentation/go/exporters/
-      # TODO-LOW: doc how if these aren't set, shutdown takes about 10 seconds
       OTEL_METRIC_EXPORT_INTERVAL: "1000" # 1000 = 1 second
       OTEL_EXPORTER_OTLP_TIMEOUT: "1000" # 1000 = 1 second
       # this is the Grafana instance that we run locally (see the "install-grafana" and related tasks below)

@@ -58,7 +58,6 @@ func configureTelemetry() {
 	var err error
 
 	// setup Prometheus
-	// TODO-LOW: doc this config and how memory backed emptyDirs or other fast storage should be used
 	tsdbDirectoryPath := telemetryConfig.Prometheus.TSDBPath
 	if tsdbDirectoryPath == "" {
 		tsdbDirectoryPath, err = os.MkdirTemp("/tmp", "bunny-tsdb-")

@@ -26,7 +26,7 @@ func newTCPSocketAction(tcpSocketActionConfig *config.TCPSocketActionConfig, tim
 	}
 
 	var host = "localhost"
-	if tcpSocketActionConfig.Host != nil {
+	if tcpSocketActionConfig.Host != nil && *tcpSocketActionConfig.Host != "" {
 		host = *tcpSocketActionConfig.Host
 	}
 	var expectSteps []ExpectStep = []ExpectStep{}

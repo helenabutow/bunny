@@ -9,10 +9,10 @@ Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and trans
 Bunny builds on the work of others, which we are grateful for:
 * [OpenTelemetry](https://opentelemetry.io/) is a powerful framework for adding metrics and tracing to any codebase
 * [Prometheus](https://prometheus.io/) but especially the contributors to the [usage page for TSDB](https://github.com/prometheus/prometheus/blob/main/tsdb/docs/usage.md)
-* [otel-cli](https://github.com/equinix-labs/otel-cli) handled tracing exec probes for me. I just had to add it to the container image and set an environment variable to integrate it. Simple and powerful.
+* [otel-cli](https://github.com/equinix-labs/otel-cli) handled tracing exec probes for us. Just had to add it to the container image and set an environment variable to integrate it. Simple and powerful.
 * [devslog](github.com/golang-cz/devslog) made reading logs easier and nicer. Send JSON to your centralized logging system but use this when reading logs locally.
-* [Task](https://taskfile.dev/) saved me from having to use `make`. It's clear and easy to use.
-* Grafana [Tempo](https://grafana.com/oss/tempo/) (for tracing) and [Mimir](https://grafana.com/oss/mimir/) (for metrics) - both were really easy to install via Helm and perfect for a local dev environment where I didn't have to worry about running up a bill.
+* [Task](https://taskfile.dev/) saved us from having to use `make`. It's clear and easy to use.
+* Grafana [Tempo](https://grafana.com/oss/tempo/) (for tracing) and [Mimir](https://grafana.com/oss/mimir/) (for metrics) - both were really easy to install via Helm and perfect for a local dev environment where we didn't have to worry about running up a bill.
 
 # Design
 
@@ -112,21 +112,18 @@ In the Pod's spec, you'll need to set the following:
 For Bunny's container spec in the Pod spec:
 
 * `env` should be set based on the "Environment Variables" section below
-<!-- TODO-LOW: finish describing this -->
-* `livenessProbe`, `readinessProbe`, and `startupProbe` 
+* `livenessProbe`, `readinessProbe`, and `startupProbe` (if needed) need to be `httpGet` probes pointing to an endpoint defined in `ingress.health` in Bunny's config file (see the "Config File" section below).
 * `ports` needs to be set to the port listed for the `ingress.httpServer.port` setting. See the "Config File" section below.
 * `resources` should have a memory request set based on the memory requirements for Bunny. Also see the note on the `GOMEMLIMIT` and `GOGC` env vars in the "Environment Variables" section.
 * `volumeMounts` is the recommended way to get Bunny's YAML file into the container. By using a volume mount of a ConfigMap or Secret, the content of the YAML file can be changed without recreating the Pod. Bunny will detect the change in content and automatically reload the file.
 
 For your app's container spec in the Pod spec:
 
-* `livenessProbe`, `readinessProbe`, and `startupProbe` should be unset and instead should be set in Bunny's YAML file, in the `egress` block. See the "Config File" section.
+* `livenessProbe`, `readinessProbe`, and `startupProbe` should be unset and instead should be set in Bunny's YAML file, in the `egress` block. See the "Config File" section. 
 
 ## Environment Variables
 
 The following env vars can be set for Bunny's container:
-
-<!-- TODO-LOW: add more env vars to the docs -->
 
 | Name                   | Default Value | Allowed Values | Purpose |
 | :---                   | :---          | :---           | :---    |
@@ -136,12 +133,325 @@ The following env vars can be set for Bunny's container:
 | TZ | none | platform specific (see https://pkg.go.dev/time#Location) | this env var provided by Go and modifies the timezone of the logs. On Linux and macos, you likely want to set this to `UTC` |
 | GOMEMLIMIT and GOGC | GOMEMLIMIT is set to result of `1024 * 1024 * 64` (which works out to 64 megs) and GOGC is set to `10` (which works out to 10 percent) | see https://tip.golang.org/doc/gc-guide | these env vars are also provided by Go. It is *strongly* recommended that both of these env vars be set based on tests performed in a staging environment. The value for `GOMEMLIMIT` should also be accounted for when setting the resources required to run this container in the Pod spec. |
 
-## Config File
+<!-- TODO-HIGH: make sure terminationGracePeriodSeconds is correct -->
+Additional environment variables are also required for configuring the OpenTelemetry exporters set in the `telemetry.openTelemetry.exporters` section of the config file. For more details, see the "telemetry" sub-section of the "Config File" section below and https://opentelemetry.io/docs/instrumentation/go/exporters/. Note that both the `OTEL_METRIC_EXPORT_INTERVAL` and `OTEL_EXPORTER_OTLP_TIMEOUT` env vars should be set to values much lower than `terminationGracePeriodSeconds` for the Pod to ensure that Bunny exits quickly when Kubernetes deletes the Pod.
 
-<!-- TODO-LOW: write docs on the config file. Or think about adding comments to the example config file -->
+## Config File
 
 <!-- TODO-LOW: write docs on using debug containers to access the filesystem of the container -->
 <!-- this should include the `cd /proc/1/root/` trick -->
+
+The YAML config file for Bunny contains most of the configuration for Bunny. It's used both when running Bunny outside of a container (mainly when developing) and in Kubernetes (where it could be stored in a Kubernetes Secret and volume mounted inside Bunny's container).
+
+Each of the top level keys of the file map to a golang package for the project. They are:
+* egress - which handles all the connections going out from Bunny
+* ingress - which handles all the connection going into Bunny
+* signals - which handles operating system signals (like SIGKILL when Kubernetes deletes a Pod)
+* telemetry - which handles the configuration for Prometheus and OpenTelemetry
+
+Details on each block follow:
+
+### egress
+
+#### initialDelayMilliseconds
+
+How long to wait after the config file has been read before probes are run.
+
+#### periodMilliseconds
+
+How long to wait between running all the probes.
+
+#### timeoutMilliseconds
+
+How long before a probe times out. Can be longer than `periodMilliseconds`.
+
+#### probes
+
+A list of probes. Each probe has a `name`, a `metrics` block, and a probe action (either `httpGet`, `grpc`, `tcpSocket`, or `exec` - described further in their own sections below).
+
+For example, here is an egress block with a `httpGet` probe action:
+
+```yaml
+egress:
+  initialDelayMilliseconds: 0
+  periodMilliseconds: 3000
+  timeoutMilliseconds: 2000
+  probes:
+    - name: "alpha"
+      httpGet:
+        host: "localhost"
+        httpHeaders:
+          - name: "x-bunny-test-header-name"
+            value: ["test-value"]
+          - name: "x-bunny-test-header-name2"
+            value: ["test-value2"]
+        port: 2624
+        path: "healthz"
+      metrics:
+        attempts:
+          name: "egress_probe_alpha_attempts"
+          enabled: true
+          extraLabels:
+            - name: "egress_probe_alpha_test_label_name"
+              value: "egress_probe_alpha_test_label_value"
+        responseTime:
+          name: "egress_probe_alpha_response_time"
+          enabled: true
+          extraLabels: []
+```
+
+##### metrics
+
+Each probe has three metrics that can be enabled:
+* `attempts` - which counts the number of times that the probe has been attempted.
+* `successes` - which counts the number of times that the probe has successfully completed. The criteria for success are different for each probe action but always include that the probe action completes before `timeoutMilliseconds`.
+* `responseTime` - how long it took for a probe action to complete (in milliseconds).
+
+Each metric block has the following keys:
+* `name` - this is the name of the metric used by Prometheus. The value should be all lowercase with underscores separating words.
+* `enabled` - a `true` or `false` value.
+* `extraLabels` - (optional) a list of `key` and `value` pairs that is applied to this metric when scraped by a Prometheus compatible scraper or when pushed to an OTLP endpoint. Useful adding additional information to the metric (like the name of the Deployment, the region, or build version)
+
+In the example above, we can see that the probe `alpha` only has `attempts` and `responseTime` metrics.
+
+##### httpGet
+
+The `httpGet` probe action is very similar to what Kubernetes already provides and has the following keys:
+
+* `host` - the DNS name or IP address of the machine to connect to. Defaults to "localhost".
+* `httpHeaders` - a list of `name` and `value` pairs where `value` is also a list of strings. These headers are sent with every HTTP GET request for the probe action.
+* `port` - the port to connect to. Only integer values are valid.
+* `path` - the path of the server to GET
+* `scheme` - either "HTTP" or "HTTPS". Note that (like Kubernetes), if "HTTPS" is used, the certificate of the server connected to is *not* checked for validity.
+
+##### grpc
+
+The `grpc` probe action is also very similar to what Kubernetes provides and just has two keys:
+
+* `port` - the port to connect to. Only integer values are valid.
+* `service` - the name of the Health service to connect to.
+
+##### tcpSocket
+
+The `tcpSocket` probe action goes beyond what Kubernetes offers. Rather than just checking to see if the port can be opened, our version allows for a conversation to played out with regular expressions used to check the responses.
+
+The keys for the probe action are:
+
+* `host` - the DNS name or IP address of the machine to connect to. Defaults to "localhost".
+* `port` - the port to connect to. Only integer values are valid.
+* `expect` - (optional) a block with the following keys:
+    * `send` - a block for sending text. It has the following keys: 
+        * `text` - the text to send
+        * `delimiter` - the text to end the message with
+    * `receive` - a block describing the text that is expected to be received. It has the following keys:
+        * `regex` - a regular expression to test the received text against
+        * `delimiter` - the text which is expected to end the message
+
+For example, in the `tcpSocket` probe action below, after connecting to `localhost:5248`, we send the string `hello` followed by a newline. We then wait and receive text until we receive a newline (based on the `delimiter` from the `receive` block). The regular expression is then checked against the received text. 
+
+```yaml
+egress:
+  initialDelayMilliseconds: 0
+  periodMilliseconds: 3000
+  timeoutMilliseconds: 2000
+  probes:
+  - name: "delta"
+    tcpSocket:
+        host: "localhost"
+        port: 5248
+        expect:
+        - send: 
+            text: "hello"
+            delimiter: "\n"
+        - receive: 
+            regex: "yellow"
+            delimiter: "\n"
+        - send:
+            text: "how're ya now?"
+            delimiter: "\n"
+        - receive:
+            regex: "can.* complain"
+            delimiter: "\n"
+```
+
+##### exec
+
+The `exec` probe action is fairly similar to what Kubernetes already offers. The differences are that:
+1. it runs inside Bunny's container, not the app container, providing a degree of isolation from the app container
+2. a trace for the `exec` probe is created by Bunny. The ID for this trace is passed to the program which is run via the `OTEL_CLI_FORCE_TRACE_ID` environment variable. This environment variable can then be consumed by `otel-cli`.
+
+The `exec` probe has the following keys:
+* `command` - a list of strings for the command to run and its arguments. The full path to the binary must be used and a shell is not automatically started.
+* `env` - the environment variables to set for the command. As noted above, `OTEL_CLI_FORCE_TRACE_ID` is automatically set. It's a list of `name` and `value` pairs.
+
+In the example that follows, we're using `otel-cli` to create a child span for the trace created by Bunny. Note that:
+1. A bash shell is being created. For this example to work, the container image for Bunny would have to be changed to include this shell.
+2. The `OTEL` environment variables are set here, despite Bunny having its own copy of the env vars. These are required for `otel-cli`.
+
+```yaml
+egress:
+  initialDelayMilliseconds: 0
+  periodMilliseconds: 3000
+  timeoutMilliseconds: 2000
+  probes:
+  - name: "epsilon"
+      exec:
+        # the "\c" at the end is a different way of making echo not print a newline
+        command: [ '/bin/bash', '-c', '/otel-cli exec --name saying-hello-to-bunny /bin/echo "Hi ${NICKNAME}!\c"' ]
+        env:
+          - name: "NICKNAME"
+            value: "Bun Bun"
+          - name: "OTEL_EXPORTER_OTLP_TIMEOUT"
+            value: "1000" # 1000 = 1 second
+          - name: "OTEL_EXPORTER_OTLP_PROTOCOL"
+            value: "http/protobuf"
+          # please don't do this - use certs if you can
+          - name: "OTEL_EXPORTER_OTLP_INSECURE"
+            value: "true"
+          # this is the Grafana instance that we run locally
+          # (see the "install-grafana" and related tasks in Taskfile.yml)
+          # you'll likely want to change this to point to whatever OpenTelemetry service you're using
+          - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+            value: "http://localhost:30002/v1/traces"
+          - name: "OTEL_CLI_VERBOSE"
+            value: "true"
+```
+
+### ingress
+
+#### httpServer
+
+Currently `ingress` only has one key. This may be expanded in the future. The keys for `httpServer` are:
+
+* `port` - the port to connect to. Only integer values are valid.
+<!-- TODO-HIGH: add link to docs for the net/http package -->
+* `readTimeoutMilliseconds`, `readHeaderTimeoutMilliseconds`, `writeTimeoutMilliseconds`, `idleTimeoutMilliseconds`, and `maxHeaderBytes` - the HTTP server provided by `ingress` is based on the one from the "net/http" package. See SOMEPAGE for more info on these settings.
+* `openTelemetryMetricsPath` - the path that should be used to scrape metrics from Bunny with a Prometheus compatible scraper if metrics are not being pushed to an OTLP metrics endpoint. See the `telemetry` block below for more details
+* `prometheusMetricsPath` - the metrics path to use to scrape metrics from Prometheus' TSDB. Useful when debugging the checks in the `health` block below. When scraping metrics for storage in a centralized metrics store, you'll want to use the value from `openTelemetryMetricsPath` instead
+* `health` - this block defines the health endpoints that Kubernetes will send HTTP probes to. The configuration for the HTTP probes that Kubernetes sends is in the Pod spec for Bunny (see the "Pod Spec" section above). For a complete example showing this, see the files in `deploy/kubernetes/bunny`. The `health` block contains the following keys:
+    * `path` - the path for the health endpoint. In the example below, paths are based on their intended usage.
+    * `metrics` - the metrics that should be generated for the queries defined in `instantQuery` or `rangeQuery`. Configured in the same way as the metrics for `egress`. See the `metrics` section above.
+    * either `instantQuery` or `rangeQuery` - these define Prometheus PromQL queries which should be executed to determine if the the endpoint at `path` is successful or not. More details are these are provided in their own sections below.
+
+An example `ingress` block:
+
+```yaml
+ingress:
+  httpServer:
+    port: 1312
+    readTimeoutMilliseconds: 5000
+    readHeaderTimeoutMilliseconds: 5000
+    writeTimeoutMilliseconds: 10000
+    idleTimeoutMilliseconds: 2000
+    maxHeaderBytes: 10000
+    openTelemetryMetricsPath: "otel-metrics"
+    prometheusMetricsPath: "prom-metrics"
+    health:
+      - path: "healthz-liveness"
+        instantQuery:
+          timeout: "5s"
+          relativeInstantTime: "-5s"
+          query: "1.0 >= bool 0.2"
+        metrics:
+          attempts:
+            name: "ingress_healthz_liveness_attempts"
+            enabled: true
+            extraLabels:
+              - name: "ingress_healthz_liveness_attempts_label_name"
+                value: "ingress_healthz_liveness_attempts_label_value"
+          responseTime:
+            name: "ingress_healthz_liveness_response_time"
+            enabled: true
+            extraLabels: []
+      - path: "healthz-readiness"
+        rangeQuery:
+          timeout: "5s"
+          relativeStartTime: "-5s"
+          relativeEndTime: "0s"
+          interval: "1s"
+          query: "1.0 >= bool 0.2"
+        metrics:
+          attempts:
+            name: "ingress_healthz_readiness_attempts"
+            enabled: true
+            extraLabels: []
+          responseTime:
+            name: "ingress_healthz_readiness_response_time"
+            enabled: true
+            extraLabels: []
+```
+
+##### instantQuery
+
+An instant query is a Prometheus PromQL query for an instant in time. It includes the following keys:
+
+* timeout - the timeout for the query as a string. For example "5s" would be 5 seconds.
+* relativeInstantTime - the time to query for relative to the time the query is executed. For example "-5s" would mean 5 seconds in the past. Non-negative values don't make sense (the future hasn't happened yet).
+* query - the PromQL query to send. The query's successful is based on what it returns:
+    * scalar: if the value is equal to 1.0, the query is successful. Otherwise, not.
+    * vector: if all values in the vector are equal to 1.0, the query is successful. Otherwise, not.
+    * matrix: if all values in the matrix are equal to 1.0, the query is successful. Otherwise, not.
+    * string: if the string is equal to "1" or "1.0", the query is successful. Otherwise, not.
+
+##### rangeQuery
+
+An instant query is a Prometheus PromQL query for a range of time. It includes the following keys:
+
+* timeout - the timeout for the query as a string. For example "5s" would be 5 seconds.
+* relativeStartTime: similar to `relativeInstantTime` for `instantQuery` but it defines the starting point of the time range.
+* relativeEndTime: coupled with `relativeStartTime` to define the end of the time range. Must be more recent than `relativeStartTime`. For example, if we want to query over the last 5 seconds, `relativeStartTime` would be `-5s` and `relativeEndTime` would be `0s`.
+* interval: the interval for which samples are taken and against which the query is performed against. For example, "1s" is every 1 second
+* query - the PromQL query to send. The query's successful is based on what it returns:
+    * scalar: if the value is equal to 1.0, the query is successful. Otherwise, not.
+    * vector: if all values in the vector are equal to 1.0, the query is successful. Otherwise, not.
+    * matrix: if all values in the matrix are equal to 1.0, the query is successful. Otherwise, not.
+    * string: if the string is equal to "1" or "1.0", the query is successful. Otherwise, not.
+
+### signals
+
+The `signals` block contains a single key, `watchedProcessCommandLineRegEx`, that defines the regular expression to use when checking to see if any matching processes are running. This is useful to ensure that the app container has exited before Bunny shuts down.
+
+For example, if we had a Python 3 based app, we might use something like the following, if we wanted to ensure that the wait completed regardless of which command line arguments were set on the app.
+
+```yaml
+signals:
+  watchedProcessCommandLineRegEx: "/usr/bin/python3 /myapp/main.py .*"
+```
+
+### telemetry
+
+This block handles the settings for OpenTelemetry (which we use for exporting metrics and traces) and Prometheus (which we use for querying metrics). It has the following keys:
+
+* `openTelemetry`
+    * `exporters` - the list of exporters to use. Valid values include `stdoutmetric`, `prometheus`, `otlpmetrichttp`, `otlpmetricgrpc`, `stdouttrace`, `otlptracehttp`, and `otlptracegrpc`. The exporters are configured through environment variables. See links for each of their docs at https://opentelemetry.io/docs/instrumentation/go/exporters/
+* `prometheus`
+    * `tsdbPath` - the path to the directory for Prometheus' time series database. Setting `tsdbPath` to an empty string results in a temp dir being created. With the recommended `securityContext` for Bunny, this will fail. Set a path here and ensure that a volume is mounted into Bunny's container (either an `emptyDir` or from a PersistentVolumeClaim)
+    * `tsdbOptions` - settings which help manage the maximum size of the TSDB. These include `retentionDurationMilliseconds`, `minBlockDurationMilliseconds`, and `maxBlockDurationMilliseconds`. See https://pkg.go.dev/github.com/prometheus/prometheus@v0.48.1/tsdb#Options for a description of what these do. The other options are the defaults.
+ <!-- TODO-HIGH: provide the link to the docs for these options -->
+    * `promql`
+
+An example `telemetry` block:
+
+```yaml
+telemetry:
+  openTelemetry:
+    exporters: 
+      - "otlpmetrichttp"
+      - "otlptracehttp"
+  prometheus:
+    tsdbPath: "/tsdb"
+    tsdbOptions:
+      retentionDurationMilliseconds: 3600000
+      minBlockDurationMilliseconds: 300000
+      maxBlockDurationMilliseconds: 900000
+    promql:
+      maxConcurrentQueries: 1000
+      engineOptions:
+        maxSamples: 50000000
+        timeoutMilliseconds: 10000
+        lookbackDeltaMilliseconds: 900000
+        noStepSubqueryIntervalMilliseconds: 1000
+```
 
 # Known Issues and Bugs
 

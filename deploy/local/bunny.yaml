@@ -1,11 +1,10 @@
 egress:
   # TODO-LOW: if we ran the probes on separate goroutines, we could make the delay, period, and timeout configurable for each probe
   # how many people will actually use this? Kubernetes only supports a single probe
+  # if this is changed, be sure to update the docs as well
   initialDelayMilliseconds: 0
   periodMilliseconds: 3000
   timeoutMilliseconds: 2000
-  #  TODO-LOW: docs on how to create liveness, readiness, and startup probe equivalents
-  # make sure to update README.md (in both the "Pod Spec" and "Config File" sections)
   probes:
     # - name: "alpha"
     #   httpGet:
@@ -124,7 +123,6 @@ ingress:
     maxHeaderBytes: 10000
     openTelemetryMetricsPath: "otel-metrics"
     prometheusMetricsPath: "prom-metrics"
-    # TODO-LOW: update README.md (in both the "Pod Spec" and "Config File" sections) on how this block works
     health:
       - path: "healthz-liveness"
         instantQuery:
