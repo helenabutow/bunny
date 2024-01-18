@@ -2,7 +2,50 @@
 
 Bunny is a sidecar proxy (of sorts) for Kubernetes probes. By handling and transforming probes, we can both offer features that Kubernetes does not and improve those that already exist.
 
-<!-- TODO-MEDIUM: add a table of contents -->
+<!-- built with https://github.com/jonschlinkert/markdown-toc -->
+<!-- toc -->
+
+- [Acknowledgements](#acknowledgements)
+- [Design](#design)
+- [Status](#status)
+- [Use Cases](#use-cases)
+- [Alternatives](#alternatives)
+- [Deployment Example](#deployment-example)
+  * [Prerequisites For Deployment Example](#prerequisites-for-deployment-example)
+  * [Creating the Kubernetes Deployment](#creating-the-kubernetes-deployment)
+  * [Finding The Metrics And Traces](#finding-the-metrics-and-traces)
+- [Configuration](#configuration)
+  * [Pod Spec](#pod-spec)
+  * [Environment Variables](#environment-variables)
+  * [Config File](#config-file)
+    + [egress](#egress)
+      - [initialDelayMilliseconds](#initialdelaymilliseconds)
+      - [periodMilliseconds](#periodmilliseconds)
+      - [timeoutMilliseconds](#timeoutmilliseconds)
+      - [probes](#probes)
+        * [metrics](#metrics)
+        * [httpGet](#httpget)
+        * [grpc](#grpc)
+        * [tcpSocket](#tcpsocket)
+        * [exec](#exec)
+    + [ingress](#ingress)
+      - [httpServer](#httpserver)
+        * [instantQuery](#instantquery)
+        * [rangeQuery](#rangequery)
+    + [signals](#signals)
+    + [telemetry](#telemetry)
+- [Known Issues and Bugs](#known-issues-and-bugs)
+  * [failed to upload metrics: failed to send metrics to http://localhost:30001/otlp/v1/metrics: 400 Bad Request](#failed-to-upload-metrics-failed-to-send-metrics-to-httplocalhost30001otlpv1metrics-400-bad-request)
+- [Building](#building)
+  * [Prerequisites For Building](#prerequisites-for-building)
+  * [Binaries](#binaries)
+  * [Container Images](#container-images)
+- [Development](#development)
+  * [Prerequisites For Development](#prerequisites-for-development)
+  * [Setting Up A Dev Environment](#setting-up-a-dev-environment)
+- [Why Bunny and Bee?](#why-bunny-and-bee)
+
+<!-- tocstop -->
 
 # Acknowledgements
 
@@ -490,9 +533,9 @@ We also need:
 * A Kubernetes cluster. With `ctlptl`, it's setup for us in Docker Desktop. If you've already configured Docker Desktop's Kubernetes feature, `ctlptl` will just validate that it has been.
 
 Aside from that, we use [vscode](https://code.visualstudio.com/) for editing with the following extensions:
-* [Go](https://marketplace.visualstudio.com/items?itemName=golang.Go) - 
+* [Go](https://marketplace.visualstudio.com/items?itemName=golang.Go) - of course
 * [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid)
-* [Task](https://marketplace.visualstudio.com/items?itemName=task.vscode-task)
+* [Task](https://marketplace.visualstudio.com/items?itemName=task.vscode-task) - detects errors in `Taskfile.yml`
 * [Todo Tree](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree) - we should probably switch to GitHub Issues at some point but for now, this is lighter/faster/better
 * [Code Spell Checker](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker) - because we misspell things
 
