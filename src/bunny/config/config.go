@@ -131,6 +131,12 @@ func GoConfig(wg *sync.WaitGroup) {
 				// show the config being used
 				logConfigBeingUsed()
 
+				// TODO-HIGH: check if the config is valid before applying it
+				// test for unknown keys in the YAML (which I think the yaml package should error on)
+				// and for incorrect types (e.g. strings instead of integers)
+				// also test the values (e.g. empty strings)
+				// we will also want to check this when loading the file for the first time above
+
 				// TODO-HIGH: add the ability to do a random delay before consuming the updated config
 				// * this should support a range (e.g. "5s", "15m", "4h", "2d")
 				// * the wait period used should come from the config being loaded (with fall back to the one that exists)

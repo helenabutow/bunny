@@ -69,6 +69,7 @@ func updateConfig(bunnyConfig *config.BunnyConfig) {
 	// wait until telemetry finishes processing its config
 	configStage, ok := <-ConfigStageChannel
 	if !ok {
+		// TODO-HIGH: we need to generally return errors to uncover cases of silently ignoring errors
 		logger.Error("ConfigStageChannel is not ok. Returning")
 		return
 	}

@@ -23,6 +23,7 @@
 			"devslog",
 			"execing",
 			"fpoint",
+			"fsnotify",
 			"gcflags",
 			"goarch",
 			"GOGC",
@@ -54,6 +55,7 @@
 			"stdouttrace",
 			"Subquery",
 			"telepresence",
+			"tocstop",
 			"tsdb",
 			"Wireshark"
 		]

@@ -178,7 +178,6 @@ The following env vars can be set for Bunny's container:
 | TZ | none | platform specific (see https://pkg.go.dev/time#Location) | this env var provided by Go and modifies the timezone of the logs. On Linux and macos, you likely want to set this to `UTC` |
 | GOMEMLIMIT and GOGC | GOMEMLIMIT is set to result of `1024 * 1024 * 64` (which works out to 64 megs) and GOGC is set to `10` (which works out to 10 percent) | see https://tip.golang.org/doc/gc-guide | these env vars are also provided by Go. It is *strongly* recommended that both of these env vars be set based on tests performed in a staging environment. The value for `GOMEMLIMIT` should also be accounted for when setting the resources required to run this container in the Pod spec. |
 
-<!-- TODO-HIGH: make sure terminationGracePeriodSeconds is correct -->
 Additional environment variables are also required for configuring the OpenTelemetry exporters set in the `telemetry.openTelemetry.exporters` section of the config file. For more details, see the "telemetry" sub-section of the "Config File" section below and https://opentelemetry.io/docs/instrumentation/go/exporters/. Note that both the `OTEL_METRIC_EXPORT_INTERVAL` and `OTEL_EXPORTER_OTLP_TIMEOUT` env vars should be set to values much lower than `terminationGracePeriodSeconds` for the Pod to ensure that Bunny exits quickly when Kubernetes deletes the Pod.
 
 ## Config File
@@ -369,8 +368,7 @@ egress:
 Currently `ingress` only has one key. This may be expanded in the future. The keys for `httpServer` are:
 
 * `port` - the port to connect to. Only integer values are valid.
-<!-- TODO-HIGH: add link to docs for the net/http package -->
-* `readTimeoutMilliseconds`, `readHeaderTimeoutMilliseconds`, `writeTimeoutMilliseconds`, `idleTimeoutMilliseconds`, and `maxHeaderBytes` - the HTTP server provided by `ingress` is based on the one from the "net/http" package. See SOMEPAGE for more info on these settings.
+* `readTimeoutMilliseconds`, `readHeaderTimeoutMilliseconds`, `writeTimeoutMilliseconds`, `idleTimeoutMilliseconds`, and `maxHeaderBytes` - the HTTP server provided by `ingress` is based on the one from the "net/http" package. See https://pkg.go.dev/net/http#Server for more info on these settings.
 * `openTelemetryMetricsPath` - the path that should be used to scrape metrics from Bunny with a Prometheus compatible scraper if metrics are not being pushed to an OTLP metrics endpoint. See the `telemetry` block below for more details
 * `prometheusMetricsPath` - the metrics path to use to scrape metrics from Prometheus' TSDB. Useful when debugging the checks in the `health` block below. When scraping metrics for storage in a centralized metrics store, you'll want to use the value from `openTelemetryMetricsPath` instead
 * `health` - this block defines the health endpoints that Kubernetes will send HTTP probes to. The configuration for the HTTP probes that Kubernetes sends is in the Pod spec for Bunny (see the "Pod Spec" section above). For a complete example showing this, see the files in `deploy/kubernetes/bunny`. The `health` block contains the following keys:
@@ -472,8 +470,9 @@ This block handles the settings for OpenTelemetry (which we use for exporting me
 * `prometheus`
     * `tsdbPath` - the path to the directory for Prometheus' time series database. Setting `tsdbPath` to an empty string results in a temp dir being created. With the recommended `securityContext` for Bunny, this will fail. Set a path here and ensure that a volume is mounted into Bunny's container (either an `emptyDir` or from a PersistentVolumeClaim)
     * `tsdbOptions` - settings which help manage the maximum size of the TSDB. These include `retentionDurationMilliseconds`, `minBlockDurationMilliseconds`, and `maxBlockDurationMilliseconds`. See https://pkg.go.dev/github.com/prometheus/prometheus@v0.48.1/tsdb#Options for a description of what these do. The other options are the defaults.
- <!-- TODO-HIGH: provide the link to the docs for these options -->
     * `promql`
+      * `maxConcurrentQueries` - limit the number of concurrent queries against the Prometheus TSDB running inside Bunny. See https://pkg.go.dev/github.com/prometheus/prometheus@v0.48.1/promql#ActiveQueryTracker
+      * `engineOptions` - each of the following options maps to their equivalent at https://pkg.go.dev/github.com/prometheus/prometheus@v0.48.1/promql#EngineOpts: `maxSamples`, `timeoutMilliseconds`, `lookbackDeltaMilliseconds`, and `noStepSubqueryIntervalMilliseconds`
 
 An example `telemetry` block:
 

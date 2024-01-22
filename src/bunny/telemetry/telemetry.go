@@ -99,6 +99,7 @@ func configureTelemetry() {
 		logger.Error("error while creating Prometheus database", "err", err)
 	}
 	maxConcurrentQueries := telemetryConfig.Prometheus.PromQL.MaxConcurrentQueries
+	// TODO-HIGH: we need to make sure that we provided reasonable default values (for all config) when values aren't provided in the config file
 	activeQueryTracker := promql.NewActiveQueryTracker(tsdbDirectoryPath, maxConcurrentQueries, kitLogger)
 	queryEngineOpts := promql.EngineOpts{
 		Logger:             kitLogger,
