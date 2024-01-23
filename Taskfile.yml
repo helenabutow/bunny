@@ -128,6 +128,30 @@ tasks:
       - defer: rm {{.ROOT_DIR}}/deploy/containers/{{.BINARY_NAME}}/{{.BINARY_NAME}}
       - docker build -t {{.BINARY_NAME}}:latest-{{.GOARCH}} .
 
+  tag-and-push-images:
+    deps: [ build-bunny-docker-image, build-bee-docker-image ]
+    cmds:
+      - for: [ 'arm64', 'amd64' ]
+        task: tag-and-push-images-for-arch
+        vars:
+          GOARCH: "{{.ITEM}}"
+  
+  tag-and-push-images-for-arch:
+    vars:
+      IMAGE_PREFIX: "ghcr.io/helenabutow"
+    cmds:
+      - for: [ 'bee', 'bunny' ]
+        cmd: "docker tag {{.ITEM}}:latest-{{.GOARCH}} {{.IMAGE_PREFIX}}/{{.ITEM}}:latest-{{.GOARCH}}"
+      - for: [ 'bee', 'bunny' ]
+        cmd: "docker push {{.IMAGE_PREFIX}}/{{.ITEM}}:latest-{{.GOARCH}}"
+
+  # CR_PAT is the GitHub personal access token required to authenticate
+  login-to-container-registry:
+    deps: [ configure-docker ]
+    silent: true
+    cmds:
+      - "echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin"
+
   # this is a little hack-ish as there's no way to set memory in docker-desktop.yaml
   # and it isn't returned when getting the cluster JSON
   configure-docker:

@@ -61,6 +61,7 @@ func (action ExecAction) act(probeName string, attemptsMetric *telemetry.Counter
 		newEnvVars := append(action.env, tranceParent)
 
 		// run the program
+		// TODO-MEDIUM: does this fail if no args are provided to the command?
 		cmd := exec.CommandContext(spanContext, action.command[0], action.command[1:]...)
 		cmd.Env = newEnvVars
 		timerStart := telemetry.PreMeasurable(attemptsMetric, responseTimeMetric)
